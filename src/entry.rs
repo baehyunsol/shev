@@ -1,13 +1,11 @@
-pub struct Entry<Data> {
-    /// Users see this text in the list.
-    pub title: String,
-
-    /// Not visible to the users.
-    pub data: Data,
+pub struct Entry {
+    /// Users see this text in the side-bar.
+    pub side_bar_title: String,
+    pub top_bar_title: Option<String>,
 
     /// These are not visible to the users.
     /// But if you set these, users can jump to next/prev
-    /// categories using a/s/z/x.
+    /// categories using Ctrl(+Shift)+up/down.
     pub category1: Option<String>,
     pub category2: Option<String>,
 
@@ -16,9 +14,17 @@ pub struct Entry<Data> {
     pub flag: EntryFlag,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EntryFlag {
     None,
     Red,
     Green,
     Blue,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EntryState {
+    None,
+    Red,
+    Green,
 }

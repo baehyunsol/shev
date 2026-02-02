@@ -1,7 +1,11 @@
+use crate::cache::TextureCache;
 use macroquad::color::Color;
-use macroquad::shapes::draw_rectangle;
+use macroquad::math::Vec2;
+use macroquad::shapes::{draw_circle, draw_rectangle, draw_triangle};
 use macroquad::text::{TextParams, draw_text_ex};
+use macroquad::texture::{DrawTextureParams, draw_texture_ex};
 
+#[derive(Clone, Debug)]
 pub enum Graphic {
     Rect {
         x: f32,
@@ -20,6 +24,8 @@ pub enum Graphic {
         thickness: Option<f32>,
         color: Color,
     },
+
+    /// NOTE: (x, y) is bottom-left of the character.
     Char {
         ch: char,
         x: f32,
@@ -27,15 +33,96 @@ pub enum Graphic {
         size: u16,
         color: Color,
     },
+
+    /// NOTE: If you're using hgui as a framework, use this to render an image. The engine will
+    ///       cache the image.
+    ///
+    /// NOTE: If you're developing hgui, make sure to convert this to `Graphic::Image { .. }`
+    ///       before calling `render()`.
+    ImageFile {
+        path: String,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    },
+
+    /// NOTE: If you're using hgui as a framework, you don't need this.
+    Image {
+        texture_id: String,
+        x: f32,
+        y: f32,
+        w: f32,
+        h: f32,
+    }
 }
 
-pub fn render(graphics: &[Graphic]) {
+pub fn render(graphics: &[Graphic], textures: &TextureCache) {
     for graphic in graphics.iter() {
         match graphic {
             Graphic::Rect { x, y, w, h, radius: None, thickness: None, color } => {
                 draw_rectangle(*x, *y, *w, *h, *color);
             },
+            Graphic::Rect { x, y, w, h, radius: Some(r), thickness: None, color } => {
+                draw_rectangle(
+                    *x + *r,
+                    *y + *r,
+                    *w - 2.0 * *r,
+                    *h - 2.0 * *r,
+                    *color,
+                );
+                draw_rectangle(
+                    *x + *r,
+                    *y,
+                    *w - 2.0 * *r,
+                    *r,
+                    *color,
+                );
+                draw_rectangle(
+                    *x + *r,
+                    *y + *h - *r,
+                    *w - 2.0 * *r,
+                    *r,
+                    *color,
+                );
+                draw_rectangle(
+                    *x,
+                    *y + *r,
+                    *r,
+                    *h - 2.0 * *r,
+                    *color,
+                );
+                draw_rectangle(
+                    *x + *w - *r,
+                    *y + *r,
+                    *r,
+                    *h - 2.0 * *r,
+                    *color,
+                );
+
+                for (angles, (c_x, c_y)) in [
+                    ([0.0f32, 0.2618, 0.5236, 0.7854, 1.0472, 1.3090], (*x + *w - *r, *y + *h - *r)),
+                    ([1.5708, 1.8326, 2.0944, 2.3562, 2.6180, 2.8798], (*x + *r, *y + *h - *r)),
+                    ([3.1416, 3.4034, 3.6652, 3.9270, 4.1888, 4.4506], (*x + *r, *y + *r)),
+                    ([4.7124, 4.9742, 5.2360, 5.4978, 5.7596, 6.0214], (*x + *w - *r, *y + *r)),
+                ] {
+                    for angle in angles.into_iter() {
+                        let (a1_x, a1_y) = (angle.cos(), angle.sin());
+                        let (a2_x, a2_y) = ((angle + 0.2618).cos(), (angle + 0.2618).sin());
+
+                        draw_triangle(
+                            Vec2::new(c_x + a1_x * *r, c_y + a1_y * *r),
+                            Vec2::new(c_x + a2_x * *r, c_y + a2_y * *r),
+                            Vec2::new(c_x, c_y),
+                            *color,
+                        );
+                    }
+                }
+            },
             Graphic::Rect { .. } => todo!(),
+            Graphic::Ellipse { x, y, rx, ry, thickness: None, color } if rx == ry => {
+                draw_circle(*x, *y, *rx, *color);
+            },
             Graphic::Ellipse { .. } => todo!(),
             Graphic::Char { ch, x, y, size, color } => {
                 draw_text_ex(
@@ -45,6 +132,25 @@ pub fn render(graphics: &[Graphic]) {
                     TextParams {
                         font_size: *size,
                         color: *color,
+                        ..Default::default()
+                    },
+                );
+            },
+            Graphic::ImageFile { path, x, y, w, h } => panic!("It should've been converted to `Graphic::Image`: {graphic:?}"),
+            Graphic::Image { texture_id, x, y, w, h } => {
+                draw_texture_ex(
+                    &textures.get(texture_id).unwrap(),
+                    *x,
+                    *y,
+                    // TODO: what's it for?
+                    Color {
+                        r: 1.0,
+                        g: 1.0,
+                        b: 1.0,
+                        a: 1.0,
+                    },
+                    DrawTextureParams {
+                        dest_size: Some(Vec2::new(*w, *h)),
                         ..Default::default()
                     },
                 );
