@@ -46,21 +46,21 @@ impl State {
         let mut lines = vec![];
 
         if let Some(title) = &entries.title {
-            lines.push(title.to_string());
+            lines.push((title.to_string(), EntryFlag::None));
         }
 
         if !entries.is_empty() {
             if let Some(top_bar_title) = &entries[self.cursor].top_bar_title {
-                lines.push(top_bar_title.to_string());
+                lines.push((top_bar_title.to_string(), entries[self.cursor].flag));
             }
         }
 
-        lines.push(format!(
+        lines.push((format!(
             "{}{}{}H: Help",
             if let Some(t) = &entries.transition { format!("J: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
             if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition1) { format!("K: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
             if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition2) { format!("L: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
-        ));
+        ), EntryFlag::None));
         let (font_size, mut curr_y, line_height, max_x) = match lines.len() {
             0 | 1 => (21.0, 60.0, 0.0, 42),
             2 => (21.0, 45.0, 40.0, 42),
@@ -75,7 +75,7 @@ impl State {
         let line_max_len = if self.wide_side_bar { max_x } else { max_x * 3 / 2 };
         let center = if self.wide_side_bar { 300.0 } else { 450.0 };
 
-        for line in lines.iter() {
+        for (line, entry_flag) in lines.iter() {
             let truncated_line = if line.chars().count() > (line_max_len + 4) {
                 format!("{}...", line.chars().take(line_max_len).collect::<String>())
             } else {
@@ -95,6 +95,27 @@ impl State {
                 }
 
                 curr_x += font_size * 0.55;
+            }
+
+            match entry_flag {
+                EntryFlag::None => {},
+                _ => {
+                    let color = match entries[self.cursor].flag {
+                        EntryFlag::Red => Color { r: 0.75, g: 0.25, b: 0.25, a: 1.0 },
+                        EntryFlag::Green => Color { r: 0.25, g: 0.75, b: 0.25, a: 1.0 },
+                        EntryFlag::Blue => Color { r: 0.25, g: 0.25, b: 0.75, a: 1.0 },
+                        EntryFlag::None => unreachable!(),
+                    };
+
+                    graphics.push(Graphic::Ellipse {
+                        x: curr_x + 10.0,
+                        y: curr_y - 6.25,
+                        rx: 6.25,
+                        ry: 6.25,
+                        color,
+                        thickness: None,
+                    });
+                },
             }
 
             curr_y += line_height;
