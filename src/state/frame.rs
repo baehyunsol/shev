@@ -32,16 +32,17 @@ impl State {
         let is_shift_down = input.pressed_keys.contains(&KeyCode::LeftShift) || input.pressed_keys.contains(&KeyCode::RightShift);
         let is_ctrl_down = input.pressed_keys.contains(&KeyCode::LeftControl) || input.pressed_keys.contains(&KeyCode::RightControl);
         let is_alt_down = input.pressed_keys.contains(&KeyCode::LeftAlt) || input.pressed_keys.contains(&KeyCode::RightAlt);
+        let side_bar_start = if self.wide_side_bar { 600.0 } else { 900.0 };
 
         if !entries.is_empty() {
             let mut scroll_speed = 1;
 
-            if input.mouse_wheel.1 < 0.0 {
+            if input.mouse_wheel.1 < 0.0 && input.mouse_pos.0 >= side_bar_start {
                 input.pressed_keys.insert(KeyCode::Down);
                 scroll_speed = (entries.len() / 32).max(1);
             }
 
-            else if input.mouse_wheel.1 > 0.0 {
+            else if input.mouse_wheel.1 > 0.0 && input.mouse_pos.0 >= side_bar_start {
                 input.pressed_keys.insert(KeyCode::Up);
                 scroll_speed = (entries.len() / 32).max(1);
             }
@@ -228,6 +229,24 @@ impl State {
                         self.show_popup(&format!("There's no transition mapped to {key} key."));
                     }
                 }
+            }
+        }
+
+        if input.mouse_pos.0 < side_bar_start {
+            if input.mouse_wheel.0 < 0.0 {
+                input.down_keys.insert(KeyCode::A);
+            }
+
+            if input.mouse_wheel.0 > 0.0 {
+                input.down_keys.insert(KeyCode::D);
+            }
+
+            if input.mouse_wheel.1 < 0.0 {
+                input.down_keys.insert(KeyCode::W);
+            }
+
+            if input.mouse_wheel.1 > 0.0 {
+                input.down_keys.insert(KeyCode::S);
             }
         }
 

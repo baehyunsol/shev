@@ -30,6 +30,11 @@ impl TextBox {
         }
     }
 
+    pub fn with_color_map(&mut self, color_map: Vec<Color>) -> &mut Self {
+        self.color = ColorMap::Each(color_map);
+        self
+    }
+
     pub fn render(&self) -> Vec<Graphic> {
         let [x, y, w, h] = self.rect;
         let [top, bottom, left, right] = self.padding;

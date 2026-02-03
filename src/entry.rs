@@ -32,6 +32,22 @@ pub struct Entry {
     pub flag: EntryFlag,
 }
 
+impl Default for Entry {
+    fn default() -> Entry {
+        Entry {
+            side_bar_title: String::new(),
+            top_bar_title: None,
+            content: None,
+            extra_content: None,
+            category1: None,
+            category2: None,
+            transition1: None,
+            transition2: None,
+            flag: EntryFlag::None,
+        }
+    }
+}
+
 pub struct Entries {
     pub id: String,
     pub title: Option<String>,

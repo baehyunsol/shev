@@ -32,16 +32,12 @@ fn build_entries(entries_map: &mut HashMap<String, Entries>, path: &str, parent:
             entries.push(Entry {
                 side_bar_title: basename(&file).unwrap(),
                 top_bar_title: Some(file.to_string()),
-                content: None,
-                extra_content: None,
-                category1: None,
-                category2: None,
                 transition1: Some(Transition {
                     id: file.to_string(),
                     description: Some(String::from("change directory")),
                 }),
-                transition2: None,
                 flag: EntryFlag::Green,
+                ..Entry::default()
             });
         }
 
@@ -49,13 +45,8 @@ fn build_entries(entries_map: &mut HashMap<String, Entries>, path: &str, parent:
             entries.push(Entry {
                 side_bar_title: basename(&file).unwrap(),
                 top_bar_title: Some(file.to_string()),
-                content: None,
-                extra_content: None,
-                category1: None,
-                category2: None,
-                transition1: None,
-                transition2: None,
                 flag: EntryFlag::Blue,
+                ..Entry::default()
             });
         }
     }
