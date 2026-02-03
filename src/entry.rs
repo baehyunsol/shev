@@ -130,6 +130,18 @@ pub enum EntryState {
     Blue,
 }
 
+impl EntryState {
+    #[must_use = "method returns a new value and does not mutate the original value"]
+    pub fn next(&self) -> EntryState {
+        match self {
+            EntryState::None => EntryState::Red,
+            EntryState::Red => EntryState::Green,
+            EntryState::Green => EntryState::Blue,
+            EntryState::Blue => EntryState::None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Transition {
     pub id: String,

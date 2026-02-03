@@ -1,4 +1,9 @@
-use ragit_fs::{basename, read_dir, read_string};
+use ragit_fs::{
+    basename,
+    join,
+    read_dir,
+    read_string,
+};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use shev::{
@@ -14,23 +19,31 @@ use shev::{
 use std::collections::HashMap;
 
 fn main() {
-    let test_results = std::env::args().collect::<Vec<_>>()[1].to_string();
+    let test_results_at = std::env::args().collect::<Vec<_>>()[1].to_string();
+    let blobs_at = join(&test_results_at, ".index/blobs").unwrap();
+    let blobs = load_blobs(&blobs_at);
     let mut entries_map = HashMap::new();
     let mut tests = vec![];
     let test_result_file_name = Regex::new(r"result\-([0-9a-f]{9})\-(.+)\.json").unwrap();
 
-    for file in read_dir(&test_results, true).unwrap() {
+    for file in read_dir(&test_results_at, true).unwrap() {
         let file_name = basename(&file).unwrap();
 
         if let Some(c) = test_result_file_name.captures(&file) {
             let result: TestResult = serde_json::from_str(&read_string(&file).unwrap()).unwrap();
             let mut entries = vec![];
 
-            for single_file_test in result.single_file_test.iter() {
+            for mut single_file_test in result.single_file_test.into_iter() {
+                // Some old results have a trailing newline character
+                single_file_test.hash = match blobs.get(single_file_test.hash.trim()) {
+                    Some(blob) => blob.to_string(),
+                    None => format!("Error: failed to load blob `{}`", single_file_test.hash.trim()),
+                };
+
                 entries.push(Entry {
                     side_bar_title: single_file_test.name.to_string(),
                     top_bar_title: Some(single_file_test.name.to_string()),
-                    content: Some(format!("# stdout\n\n```\n{}\n```\n\n# stderr\n\n```\n{}\n```", single_file_test.stdout, single_file_test.stderr)),
+                    content: Some(serde_json::to_string(&single_file_test).unwrap()),
                     flag: if single_file_test.error.is_some() {
                         EntryFlag::Red
                     } else {
@@ -112,8 +125,17 @@ pub struct SingleFileTest {
     hash: String,
 }
 
-fn render_single_file_test(e: &Entry, _es: EntryState) -> Result<Vec<Graphic>, String> {
-    let (s, colors) = apply_ansi_term_color(e.content.as_ref().unwrap());
+fn render_single_file_test(e: &Entry, es: EntryState) -> Result<Vec<Graphic>, String> {
+    let test_result: SingleFileTest = serde_json::from_str(e.content.as_ref().unwrap()).unwrap();
+
+    // The main function replaced `test_result.hash` with the file content.
+    let file_content = test_result.hash.clone();
+
+    let s = match es {
+        EntryState::None | EntryState::Green => file_content,
+        EntryState::Red | EntryState::Blue => format!("# stdout\n\n```\n{}\n```\n\n# stderr\n\n```\n{}\n```", test_result.stdout, test_result.stderr),
+    };
+    let (s, colors) = apply_ansi_term_color(&s);
     Ok(TextBox::new(
         &s,
         16.0,
@@ -179,4 +201,19 @@ fn apply_ansi_term_color(s: &str) -> (String, Vec<Color>) {
     }
 
     (chars.iter().collect(), colors)
+}
+
+fn load_blobs(blobs_at: &str) -> HashMap<String, String> {
+    let mut result = HashMap::new();
+
+    for pre_dir in read_dir(blobs_at, false).unwrap() {
+        let prefix = basename(&pre_dir).unwrap();
+
+        for suffix_full in read_dir(&pre_dir, false).unwrap() {
+            let suffix = basename(&suffix_full).unwrap();
+            result.insert(format!("{prefix}{suffix}"), read_string(&suffix_full).unwrap());
+        }
+    }
+
+    result
 }

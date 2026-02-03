@@ -208,9 +208,9 @@ impl State {
                 }
             }
 
+            // TODO: do I have to reset camera after this?
             if input.pressed_keys.contains(&KeyCode::M) {
-                // change entry_state
-                todo!()
+                self.entry_state = self.entry_state.next();
             }
 
             for (key, key_code, transition) in [
@@ -232,28 +232,34 @@ impl State {
             }
         }
 
+        let mut camera_move_speed = 1.0;
+
         if input.mouse_pos.0 < side_bar_start {
             if input.mouse_wheel.0 < 0.0 {
                 input.down_keys.insert(KeyCode::A);
+                camera_move_speed = 3.0;
             }
 
             if input.mouse_wheel.0 > 0.0 {
                 input.down_keys.insert(KeyCode::D);
+                camera_move_speed = 3.0;
             }
 
             if input.mouse_wheel.1 < 0.0 {
                 input.down_keys.insert(KeyCode::W);
+                camera_move_speed = 3.0;
             }
 
             if input.mouse_wheel.1 > 0.0 {
                 input.down_keys.insert(KeyCode::S);
+                camera_move_speed = 3.0;
             }
         }
 
         let (camera_move_speed, zoom_faster) = if input.down_keys.contains(&KeyCode::LeftShift) || input.down_keys.contains(&KeyCode::RightShift) {
-            (40.0 / self.camera_zoom, true)
+            (40.0 / self.camera_zoom * camera_move_speed, true)
         } else {
-            (10.0 / self.camera_zoom, false)
+            (10.0 / self.camera_zoom * camera_move_speed, false)
         };
 
         if input.down_keys.contains(&KeyCode::W) {
