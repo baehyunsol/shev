@@ -22,8 +22,8 @@ use action::Action;
 use cache::{RenderCache, TextureCache};
 pub use macroquad::color::Color;
 pub use config::Config;
-pub use entry::{Entries, Entry, EntryFlag, EntryState};
-pub use graphic::Graphic;
+pub use entry::{Entries, Entry, EntryFlag, EntryState, Transition};
+pub use graphic::{Graphic, TextBox};
 use graphic::hide_off_screen;
 use input::get_input;
 use state::State;
@@ -94,7 +94,7 @@ async fn run_inner(
         let mut graphics = state.render(entries, &conf);
         hide_off_screen(&mut graphics, 1080.0, 720.0);
         fit_graphics_to_screen(&mut graphics, 1080.0, 720.0, s_w, s_h);
-        graphic::render(&graphics, &font, &texture_cache);
+        graphic::render(&graphics, &font, &texture_cache, (s_w, s_h));
 
         next_frame().await;
         let elapsed_time = Instant::now().duration_since(frame_started_at).as_millis() as u64;

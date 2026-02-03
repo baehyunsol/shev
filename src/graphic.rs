@@ -62,8 +62,26 @@ pub enum Graphic {
     }
 }
 
-pub fn render(graphics: &[Graphic], font: &Font, textures: &TextureCache) {
+impl Graphic {
+    pub fn get_rect(&self) -> [f32; 4] {
+        match self {
+            Graphic::Rect { x, y, w, h, .. } |
+            Graphic::ImageFile { x, y, w, h, .. } |
+            Graphic::Image { x, y, w, h, .. } => [*x, *y, *w, *h],
+            Graphic::Ellipse { x, y, rx, ry, .. } => [*x - *rx, *y - *ry, *rx * 2.0, *ry * 2.0],
+            Graphic::Char { x, y, size, .. } => [*x, *y, *x + *size, *y + *size],
+        }
+    }
+}
+
+pub fn render(graphics: &[Graphic], font: &Font, textures: &TextureCache, (screen_width, screen_height): (f32, f32)) {
     for graphic in graphics.iter() {
+        let [x, y, w, h] = graphic.get_rect();
+
+        if x > screen_width || y > screen_height || x + w < 0.0 || y + h < 0.0 {
+            continue;
+        }
+
         match graphic {
             Graphic::Rect { x, y, w, h, radius: None, thickness: None, color } => {
                 draw_rectangle(*x, *y, *w, *h, *color);
