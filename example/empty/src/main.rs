@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 fn main() {
-    gui::run(gui::Config::default(), gui::State::default())
+    shev::run(shev::Config::default(), HashMap::new(), String::new())
 }

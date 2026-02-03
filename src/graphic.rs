@@ -2,8 +2,12 @@ use crate::cache::TextureCache;
 use macroquad::color::Color;
 use macroquad::math::Vec2;
 use macroquad::shapes::{draw_circle, draw_rectangle, draw_triangle};
-use macroquad::text::{TextParams, draw_text_ex};
+use macroquad::text::{Font, TextParams, draw_text_ex};
 use macroquad::texture::{DrawTextureParams, draw_texture_ex};
+
+mod text_box;
+
+pub use text_box::TextBox;
 
 #[derive(Clone, Debug)]
 pub enum Graphic {
@@ -26,18 +30,19 @@ pub enum Graphic {
     },
 
     /// NOTE: (x, y) is bottom-left of the character.
+    /// TODO: I'm not sure whether (x, y) is bottom-left of the character...
     Char {
         ch: char,
         x: f32,
         y: f32,
-        size: u16,
+        size: f32,
         color: Color,
     },
 
-    /// NOTE: If you're using hgui as a framework, use this to render an image. The engine will
+    /// NOTE: If you're using shev as a framework, use this to render an image. The engine will
     ///       cache the image.
     ///
-    /// NOTE: If you're developing hgui, make sure to convert this to `Graphic::Image { .. }`
+    /// NOTE: If you're developing shev, make sure to convert this to `Graphic::Image { .. }`
     ///       before calling `render()`.
     ImageFile {
         path: String,
@@ -47,7 +52,7 @@ pub enum Graphic {
         h: f32,
     },
 
-    /// NOTE: If you're using hgui as a framework, you don't need this.
+    /// NOTE: If you're using shev as a framework, you don't need this.
     Image {
         texture_id: String,
         x: f32,
@@ -57,7 +62,7 @@ pub enum Graphic {
     }
 }
 
-pub fn render(graphics: &[Graphic], textures: &TextureCache) {
+pub fn render(graphics: &[Graphic], font: &Font, textures: &TextureCache) {
     for graphic in graphics.iter() {
         match graphic {
             Graphic::Rect { x, y, w, h, radius: None, thickness: None, color } => {
@@ -130,13 +135,14 @@ pub fn render(graphics: &[Graphic], textures: &TextureCache) {
                     *x,
                     *y,
                     TextParams {
-                        font_size: *size,
+                        font: Some(font),
+                        font_size: size.round() as u16,
                         color: *color,
                         ..Default::default()
                     },
                 );
             },
-            Graphic::ImageFile { path, x, y, w, h } => panic!("It should've been converted to `Graphic::Image`: {graphic:?}"),
+            Graphic::ImageFile { .. } => panic!("It should've been converted to `Graphic::Image`: {graphic:?}"),
             Graphic::Image { texture_id, x, y, w, h } => {
                 draw_texture_ex(
                     &textures.get(texture_id).unwrap(),
@@ -157,4 +163,43 @@ pub fn render(graphics: &[Graphic], textures: &TextureCache) {
             },
         }
     }
+}
+
+pub fn hide_off_screen(graphics: &mut Vec<Graphic>, screen_width: f32, screen_height: f32) {
+    graphics.push(Graphic::Rect {
+        x: -400.0,
+        y: -400.0,
+        w: screen_width + 800.0,
+        h: 400.0,
+        radius: None,
+        thickness: None,
+        color: Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+    });
+    graphics.push(Graphic::Rect {
+        x: -400.0,
+        y: screen_height,
+        w: screen_width + 800.0,
+        h: 400.0,
+        radius: None,
+        thickness: None,
+        color: Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+    });
+    graphics.push(Graphic::Rect {
+        x: -400.0,
+        y: -400.0,
+        w: 400.0,
+        h: screen_height + 800.0,
+        radius: None,
+        thickness: None,
+        color: Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+    });
+    graphics.push(Graphic::Rect {
+        x: screen_width,
+        y: -400.0,
+        w: 400.0,
+        h: screen_height + 800.0,
+        radius: None,
+        thickness: None,
+        color: Color { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+    });
 }

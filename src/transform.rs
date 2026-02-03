@@ -49,7 +49,7 @@ pub fn fit_graphics_to_screen(
             Graphic::Char { x, y, size, .. } => {
                 *x = *x * scale + x_offset;
                 *y = *y * scale + y_offset;
-                *size = (*size as f32 * scale).round() as u16;
+                *size *= scale;
             },
             Graphic::ImageFile { x, y, w, h, .. } | Graphic::Image { x, y, w, h, .. } => {
                 *x = *x * scale + x_offset;
@@ -94,6 +94,48 @@ pub fn move_rel(graphics: &mut Vec<Graphic>, x_offset: f32, y_offset: f32) {
             Graphic::Image { x, y, .. } => {
                 *x += x_offset;
                 *y += y_offset;
+            },
+        }
+    }
+}
+
+pub fn scale(graphics: &mut Vec<Graphic>, scale: f32) {
+    for graphic in graphics.iter_mut() {
+        match graphic {
+            Graphic::Rect { x, y, w, h, radius, thickness, .. } => {
+                *x *= scale;
+                *y *= scale;
+                *w *= scale;
+                *h *= scale;
+
+                if let Some(radius) = radius {
+                    *radius *= scale;
+                }
+
+                if let Some(thickness) = thickness {
+                    *thickness *= scale;
+                }
+            },
+            Graphic::Ellipse { x, y, rx, ry, thickness, .. } => {
+                *x *= scale;
+                *y *= scale;
+                *rx *= scale;
+                *ry *= scale;
+
+                if let Some(thickness) = thickness {
+                    *thickness *= scale;
+                }
+            },
+            Graphic::Char { x, y, size, .. } => {
+                *x *= scale;
+                *y *= scale;
+                *size *= scale;
+            },
+            Graphic::ImageFile { x, y, w, h, .. } | Graphic::Image { x, y, w, h, .. } => {
+                *x *= scale;
+                *y *= scale;
+                *w *= scale;
+                *h *= scale;
             },
         }
     }
