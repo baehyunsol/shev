@@ -19,7 +19,9 @@ use shev::{
 use std::collections::HashMap;
 
 fn main() {
-    let test_results_at = std::env::args().collect::<Vec<_>>()[1].to_string();
+    let args = std::env::args().collect::<Vec<_>>();
+    let test_results_at = args[1].to_string();
+    let sodigy_at = args[2].to_string();
     let blobs_at = join(&test_results_at, ".index/blobs").unwrap();
     let blobs = load_blobs(&blobs_at);
     let mut entries_map = HashMap::new();
@@ -45,9 +47,15 @@ fn main() {
 
             for mut single_file_test in result.single_file_test.into_iter() {
                 // Some old results have a trailing newline character
-                single_file_test.hash = match blobs.get(single_file_test.hash.trim()) {
+                let hash = single_file_test.hash.trim();
+
+                // There's no place to store this information, so I'll reuse this field.
+                single_file_test.hash = match blobs.get(hash) {
                     Some(blob) => blob.to_string(),
-                    None => format!("Error: failed to load blob `{}`", single_file_test.hash.trim()),
+                    None => match try_load_blob_from_git(&sodigy_at, hash) {
+                        Ok(blob) => blob,
+                        Err(_) => format!("Error: failed to load blob `{hash}`")
+                    },
                 };
 
                 entries.push(Entry {
@@ -238,4 +246,23 @@ fn load_blobs(blobs_at: &str) -> HashMap<String, String> {
     }
 
     result
+}
+
+fn try_load_blob_from_git(sodigy_at: &str, hash: &str) -> Result<String, ()> {
+    use std::process::Command;
+    let maybe_blob = Command::new("git")
+        .arg("-C")
+        .arg(sodigy_at)
+        .arg("cat-file")
+        .arg("blob")
+        .arg(hash)
+        .output().map_err(|_| ())?;
+
+    if maybe_blob.status.success() {
+        Ok(String::from_utf8_lossy(&maybe_blob.stdout).to_string())
+    }
+
+    else {
+        Err(())
+    }
 }
