@@ -63,6 +63,7 @@ async fn run_inner(
         cursor: 0,
         entry_state: EntryState::None,
         wide_side_bar: false,
+        hovered_entry: None,
         show_help: false,
         show_extra_content: false,
         camera_pos: (450.0, 300.0),
@@ -74,17 +75,18 @@ async fn run_inner(
     let font = load_ttf_font_from_bytes(include_bytes!("../resources/SpaceMono-Regular.ttf")).unwrap();
 
     loop {
+        let (s_w, s_h) = (screen_width(), screen_height());
+        let mut input = get_input();
+        fit_input_to_screen(&mut input, 1080.0, 720.0, s_w, s_h);
+
+        // There should be no state-update between `state.update_cache` and `state.render`.
         state.update_cache(entries, &mut texture_cache).await;
         let frame_started_at = Instant::now();
-        let (s_w, s_h) = (screen_width(), screen_height());
 
-        let mut graphics = state.render(entries, &conf);
+        let mut graphics = state.render(&input, entries, &conf);
         hide_off_screen(&mut graphics, 1080.0, 720.0);
         fit_graphics_to_screen(&mut graphics, 1080.0, 720.0, s_w, s_h);
         graphic::render(&graphics, &font, &mut texture_cache, (s_w, s_h));
-
-        let mut input = get_input();
-        fit_input_to_screen(&mut input, 1080.0, 720.0, s_w, s_h);
 
         match state.frame(&entries, input).await {
             Action::None => {},

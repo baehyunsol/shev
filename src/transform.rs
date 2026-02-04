@@ -46,6 +46,14 @@ pub fn fit_graphics_to_screen(
                     *thickness *= scale;
                 }
             },
+            Graphic::Triangle { p1: (x1, y1), p2: (x2, y2), p3: (x3, y3), .. } => {
+                *x1 = *x1 * scale + x_offset;
+                *x2 = *x2 * scale + x_offset;
+                *x3 = *x3 * scale + x_offset;
+                *y1 = *y1 * scale + y_offset;
+                *y2 = *y2 * scale + y_offset;
+                *y3 = *y3 * scale + y_offset;
+            },
             Graphic::Char { x, y, size, .. } => {
                 *x = *x * scale + x_offset;
                 *y = *y * scale + y_offset;
@@ -95,6 +103,14 @@ pub fn move_rel(graphics: &mut Vec<Graphic>, x_offset: f32, y_offset: f32) {
                 *x += x_offset;
                 *y += y_offset;
             },
+            Graphic::Triangle { p1: (x1, y1), p2: (x2, y2), p3: (x3, y3), .. } => {
+                *x1 += x_offset;
+                *x2 += x_offset;
+                *x3 += x_offset;
+                *y1 += y_offset;
+                *y2 += y_offset;
+                *y3 += y_offset;
+            },
         }
     }
 }
@@ -126,6 +142,14 @@ pub fn scale(graphics: &mut Vec<Graphic>, scale: f32) {
                     *thickness *= scale;
                 }
             },
+            Graphic::Triangle { p1: (x1, y1), p2: (x2, y2), p3: (x3, y3), .. } => {
+                *x1 *= scale;
+                *x2 *= scale;
+                *x3 *= scale;
+                *y1 *= scale;
+                *y2 *= scale;
+                *y3 *= scale;
+            },
             Graphic::Char { x, y, size, .. } => {
                 *x *= scale;
                 *y *= scale;
@@ -139,4 +163,11 @@ pub fn scale(graphics: &mut Vec<Graphic>, scale: f32) {
             },
         }
     }
+}
+
+pub fn check_contain(rect: [f32; 4], point: (f32, f32)) -> bool {
+    let (p_x, p_y) = point;
+    let [r_x, r_y, r_w, r_h] = rect;
+
+    r_x <= p_x && p_x < r_x + r_w && r_y <= p_y && p_y < r_y + r_h
 }

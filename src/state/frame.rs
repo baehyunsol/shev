@@ -2,10 +2,13 @@ use super::State;
 use crate::action::Action;
 use crate::entry::{Entries, EntryState};
 use crate::input::Input;
+use crate::transform::check_contain;
 use macroquad::input::KeyCode;
 
 impl State {
     pub async fn frame(&mut self, entries: &Entries, mut input: Input) -> Action {
+        let original_cursor = self.cursor;
+
         if let Some((life, _)) = &mut self.popup {
             *life -= 1;
 
@@ -67,8 +70,6 @@ impl State {
             }
 
             if input.pressed_keys.contains(&KeyCode::Down) {
-                self.reset_entry_state();
-
                 if is_ctrl_down {
                     // Ctrl+Shift+Down: jump to next category 2
                     if is_shift_down {
@@ -104,8 +105,6 @@ impl State {
             }
 
             else if input.pressed_keys.contains(&KeyCode::Up) {
-                self.reset_entry_state();
-
                 if is_ctrl_down {
                     // Ctrl+Shift+Up: jump to prev category 2
                     if is_shift_down {
@@ -141,8 +140,6 @@ impl State {
             }
 
             else if input.pressed_keys.contains(&KeyCode::Space) {
-                self.reset_entry_state();
-
                 // Alt+Space: jump to prev entry with the same flag
                 if is_alt_down {
                     let curr_flag = &entries[self.cursor].flag;
@@ -204,7 +201,7 @@ impl State {
                 self.wide_side_bar = true;
             }
 
-            if input.pressed_keys.contains(&KeyCode::Right) {
+            else if input.pressed_keys.contains(&KeyCode::Right) {
                 self.wide_side_bar = false;
             }
 
@@ -317,6 +314,28 @@ impl State {
             }
         }
 
+        if self.wide_side_bar && check_contain(
+            [584.0, 344.0, 32.0, 32.0],
+            input.mouse_pos,
+        ) && input.mouse_pressed[0] {
+            self.wide_side_bar = false;
+        }
+
+        else if !self.wide_side_bar && check_contain(
+            [884.0, 344.0, 32.0, 32.0],
+            input.mouse_pos,
+        ) && input.mouse_pressed[0] {
+            self.wide_side_bar = true;
+        }
+
+        else if let Some(i) = self.hovered_entry && input.mouse_pressed[0] {
+            self.cursor = i;
+        }
+
+        if self.cursor != original_cursor {
+            self.reset_entry_state();
+        }
+
         Action::None
     }
 
@@ -326,6 +345,7 @@ impl State {
 
     fn reset_entries_state(&mut self) {
         self.cursor = 0;
+        self.hovered_entry = None;
         self.reset_entry_state();
     }
 

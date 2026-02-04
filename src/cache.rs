@@ -132,7 +132,7 @@ impl TextureCache {
 
 fn calc_scroll_bar_colors(entries: &[Entry]) -> Vec<Color> {
     let mut colors = vec![Color { r: 0.5, g: 0.5, b: 0.5, a: 1.0 }; 128];
-    let d = entries.len() as f32 / 300.0;
+    let d = entries.len() as f32 / 200.0;
 
     for (i, entry) in entries.iter().enumerate() {
         let j = i * 128 / entries.len();

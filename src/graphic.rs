@@ -28,6 +28,12 @@ pub enum Graphic {
         thickness: Option<f32>,
         color: Color,
     },
+    Triangle {
+        p1: (f32, f32),
+        p2: (f32, f32),
+        p3: (f32, f32),
+        color: Color,
+    },
 
     /// NOTE: (x, y) is bottom-left of the character.
     /// TODO: I'm not sure whether (x, y) is bottom-left of the character...
@@ -69,6 +75,13 @@ impl Graphic {
             Graphic::ImageFile { x, y, w, h, .. } |
             Graphic::Image { x, y, w, h, .. } => [*x, *y, *w, *h],
             Graphic::Ellipse { x, y, rx, ry, .. } => [*x - *rx, *y - *ry, *rx * 2.0, *ry * 2.0],
+            Graphic::Triangle { p1: (x1, y1), p2: (x2, y2), p3: (x3, y3), .. } => {
+                let x_min = (*x1).min(*x2).min(*x3);
+                let x_max = (*x1).max(*x2).max(*x3);
+                let y_min = (*y1).min(*y2).min(*y3);
+                let y_max = (*y1).max(*y2).max(*y3);
+                [x_min, y_min, x_max - x_min, y_max - y_min]
+            },
             Graphic::Char { x, y, size, .. } => [*x, *y, *x + *size, *y + *size],
         }
     }
@@ -147,6 +160,14 @@ pub fn render(graphics: &[Graphic], font: &Font, textures: &mut TextureCache, (s
                 draw_circle(*x, *y, *rx, *color);
             },
             Graphic::Ellipse { .. } => todo!(),
+            Graphic::Triangle { p1: (x1, y1), p2: (x2, y2), p3: (x3, y3), color } => {
+                draw_triangle(
+                    Vec2::new(*x1, *y1),
+                    Vec2::new(*x2, *y2),
+                    Vec2::new(*x3, *y3),
+                    *color,
+                );
+            },
             Graphic::Char { ch, x, y, size, color } => {
                 draw_text_ex(
                     &std::iter::once(*ch).collect::<String>(),

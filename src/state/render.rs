@@ -2,19 +2,20 @@ use super::State;
 use crate::config::Config;
 use crate::entry::{Entries, EntryFlag};
 use crate::graphic::{Graphic, TextBox};
-use crate::transform;
+use crate::input::Input;
+use crate::transform::{check_contain, move_rel, scale};
 use macroquad::color::Color;
 
 impl State {
     /// It thinks that the screen is always 1080x720.
     /// There's another function out there that fits the graphics
     /// to the actual screen size.
-    pub fn render(&mut self, entries: &Entries, config: &Config) -> Vec<Graphic> {
+    pub fn render(&mut self, input: &Input, entries: &Entries, config: &Config) -> Vec<Graphic> {
         let mut graphics = vec![];
 
         self.render_canvas(&mut graphics);
         self.render_top_bar(config, entries, &mut graphics);
-        self.render_side_bar(config, entries, &mut graphics);
+        self.render_side_bar(input, config, entries, &mut graphics);
 
         if self.show_extra_content {
             self.render_extra_content(entries, &mut graphics);
@@ -124,7 +125,7 @@ impl State {
         }
     }
 
-    fn render_side_bar(&mut self, config: &Config, entries: &Entries, graphics: &mut Vec<Graphic>) {
+    fn render_side_bar(&mut self, input: &Input, config: &Config, entries: &Entries, graphics: &mut Vec<Graphic>) {
         let (x, w) = if self.wide_side_bar { (600.0, 480.0) } else { (900.0, 180.0) };
         let title_max_len = if self.wide_side_bar { 36 } else { 8 };
 
@@ -147,6 +148,7 @@ impl State {
         }
 
         let mut curr_y = 20.0;
+        let mut is_hovering_on_something = false;
 
         for i in list_start..list_end {
             let truncated_title = if entries[i].side_bar_title.chars().count() > (title_max_len + 4) {
@@ -154,9 +156,14 @@ impl State {
             } else {
                 entries[i].side_bar_title.to_string()
             };
+            let bullet = match (i == self.cursor, Some(i) == self.hovered_entry) {
+                (true, false) => ">>",
+                (false, true) => " *",
+                (true, true) => "*>",
+                (false, false) => "  ",
+            };
             let title = format!(
-                "{} {}. {}",
-                if i == self.cursor { ">>" } else { "  " },
+                "{bullet} {}. {}",
                 i + 1,
                 truncated_title,
             );
@@ -174,6 +181,11 @@ impl State {
                 }
 
                 curr_x += 8.0;
+            }
+
+            if check_contain([x + 5.0, curr_y - 17.6, w - 40.0, 17.6], input.mouse_pos) {
+                is_hovering_on_something = true;
+                self.hovered_entry = Some(i);
             }
 
             match entries[i].flag {
@@ -198,6 +210,10 @@ impl State {
             }
 
             curr_y += 17.6;
+        }
+
+        if !is_hovering_on_something {
+            self.hovered_entry = None;
         }
 
         if self.wide_side_bar && entries.len() > 33 {
@@ -251,16 +267,85 @@ impl State {
             });
             curr_x += 8.8;
         }
+
+        // "expand" button
+        if self.wide_side_bar {
+            let alpha = if check_contain([584.0, 344.0, 32.0, 32.0], input.mouse_pos) {
+                1.0
+            } else {
+                0.5
+            };
+
+            graphics.push(Graphic::Rect {
+                x: 584.0,
+                y: 344.0,
+                w: 32.0,
+                h: 32.0,
+                radius: None,
+                thickness: None,
+                color: Color {
+                    r: 0.7,
+                    g: 0.7,
+                    b: 0.7,
+                    a: alpha,
+                },
+            });
+            graphics.push(Graphic::Triangle {
+                p1: (590.0, 350.0),
+                p2: (590.0, 370.0),
+                p3: (610.0, 360.0),
+                color: Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: alpha,
+                },
+            });
+        }
+
+        else {
+            let alpha = if check_contain([884.0, 344.0, 32.0, 32.0], input.mouse_pos) {
+                1.0
+            } else {
+                0.5
+            };
+
+            graphics.push(Graphic::Rect {
+                x: 884.0,
+                y: 344.0,
+                w: 32.0,
+                h: 32.0,
+                radius: None,
+                thickness: None,
+                color: Color {
+                    r: 0.7,
+                    g: 0.7,
+                    b: 0.7,
+                    a: alpha,
+                },
+            });
+            graphics.push(Graphic::Triangle {
+                p1: (910.0, 350.0),
+                p2: (910.0, 370.0),
+                p3: (890.0, 360.0),
+                color: Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: alpha,
+                },
+            });
+        }
     }
 
     fn render_canvas(&mut self, graphics: &mut Vec<Graphic>) {
         // The canvas has 900x600 resolution.
         let mut canvas = self.curr_canvas().unwrap_or(&vec![]).clone();
-        transform::scale(&mut canvas, self.camera_zoom);
+        scale(&mut canvas, self.camera_zoom);
 
         // The camera position is mapped to (450, 420) of the screen.
         // -> canvas has rect (0, 120, 900, 600) and its center is (450, 420).
-        transform::move_rel(&mut canvas, 450.0 - self.camera_pos.0 * self.camera_zoom, 420.0 - self.camera_pos.1 * self.camera_zoom);
+        move_rel(&mut canvas, 450.0 - self.camera_pos.0 * self.camera_zoom, 420.0 - self.camera_pos.1 * self.camera_zoom);
         graphics.extend(canvas);
     }
 
