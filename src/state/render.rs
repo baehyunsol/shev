@@ -255,7 +255,7 @@ impl State {
 
     fn render_canvas(&mut self, graphics: &mut Vec<Graphic>) {
         // The canvas has 900x600 resolution.
-        let mut canvas = self.curr_canvas().clone();
+        let mut canvas = self.curr_canvas().unwrap_or(&vec![]).clone();
         transform::scale(&mut canvas, self.camera_zoom);
 
         // The camera position is mapped to (450, 420) of the screen.
@@ -297,7 +297,7 @@ impl State {
         let has_category1 = entries.iter().any(|entry| entry.category1.is_some());
         let has_category2 = entries.iter().any(|entry| entry.category2.is_some());
         let has_flag = entries.iter().any(|entry| entry.flag.is_some());
-        let has_something_on_canvas = !self.curr_canvas().is_empty();
+        let has_something_on_canvas = !self.curr_canvas().unwrap_or(&vec![]).is_empty();
         let has_transition = entries.transition.is_some() || entries.iter().any(|entry| entry.transition1.is_some() || entry.transition2.is_some());
         let lines = [
             ("Esc: Quit", true),

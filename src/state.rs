@@ -32,8 +32,8 @@ impl State {
         self.cache.scroll_bar_colors.get(&self.curr_entries_id).unwrap()
     }
 
-    pub fn curr_canvas(&mut self) -> &Vec<Graphic> {
+    pub fn curr_canvas(&mut self) -> Option<&Vec<Graphic>> {
         // It must be here because `self.update_cache()` is called every frame.
-        self.cache.canvas.get(&(self.curr_entries_id.to_string(), self.cursor, self.entry_state)).unwrap()
+        self.cache.canvas.get(&(self.curr_entries_id.to_string(), self.cursor, self.entry_state))
     }
 }

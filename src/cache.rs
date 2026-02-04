@@ -63,7 +63,7 @@ pub struct RenderCache {
 }
 
 impl RenderCache {
-    pub fn new(entries_id: String, entries: &Entries) -> RenderCache {
+    pub fn new() -> RenderCache {
         RenderCache {
             canvas: LRU::with_capacity(128),
             scroll_bar_colors: LRU::with_capacity(128),
@@ -73,23 +73,25 @@ impl RenderCache {
 
 impl State {
     pub async fn update_cache(&mut self, entries: &Entries, textures: &mut TextureCache) {
-        let canvas_key = (self.curr_entries_id.clone(), self.cursor, self.entry_state);
+        if !entries.is_empty() {
+            let canvas_key = (self.curr_entries_id.clone(), self.cursor, self.entry_state);
 
-        if !self.cache.canvas.contains_key(&canvas_key) {
-            // TODO: render error message
-            let mut canvas = (entries.render_canvas)(&entries[self.cursor], self.entry_state).unwrap();
+            if !self.cache.canvas.contains_key(&canvas_key) {
+                // TODO: render error message
+                let mut canvas = (entries.render_canvas)(&entries[self.cursor], self.entry_state).unwrap();
 
-            for graphic in canvas.iter_mut() {
-                match graphic {
-                    Graphic::ImageFile { path, x, y, w, h } => {
-                        let texture_id = textures.register(path).await;
-                        *graphic = Graphic::Image { texture_id, x: *x, y: *y, w: *w, h: *h };
-                    },
-                    _ => {},
+                for graphic in canvas.iter_mut() {
+                    match graphic {
+                        Graphic::ImageFile { path, x, y, w, h } => {
+                            let texture_id = textures.register(path).await;
+                            *graphic = Graphic::Image { texture_id, x: *x, y: *y, w: *w, h: *h };
+                        },
+                        _ => {},
+                    }
                 }
-            }
 
-            self.cache.canvas.insert(canvas_key, canvas);
+                self.cache.canvas.insert(canvas_key, canvas);
+            }
         }
 
         if !self.cache.scroll_bar_colors.contains_key(&self.curr_entries_id) {
