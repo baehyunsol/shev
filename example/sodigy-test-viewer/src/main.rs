@@ -29,9 +29,19 @@ fn main() {
     for file in read_dir(&test_results_at, true).unwrap() {
         let file_name = basename(&file).unwrap();
 
-        if let Some(c) = test_result_file_name.captures(&file) {
+        if test_result_file_name.is_match(&file) {
             let result: TestResult = serde_json::from_str(&read_string(&file).unwrap()).unwrap();
             let mut entries = vec![];
+            tests.push(Entry {
+                side_bar_title: file_name.to_string(),
+                top_bar_title: Some(file_name.to_string()),
+                content: Some(serde_json::to_string(&result).unwrap()),
+                transition1: Some(Transition {
+                    id: file_name.to_string(),
+                    description: Some(String::from("See details")),
+                }),
+                ..Entry::default()
+            });
 
             for mut single_file_test in result.single_file_test.into_iter() {
                 // Some old results have a trailing newline character
@@ -44,6 +54,7 @@ fn main() {
                     side_bar_title: single_file_test.name.to_string(),
                     top_bar_title: Some(single_file_test.name.to_string()),
                     content: Some(serde_json::to_string(&single_file_test).unwrap()),
+                    extra_content: Some(serde_json::to_string_pretty(&result.meta).unwrap()),
                     flag: if single_file_test.error.is_some() {
                         EntryFlag::Red
                     } else {
@@ -66,15 +77,6 @@ fn main() {
                     render_canvas: render_single_file_test,
                 },
             );
-            tests.push(Entry {
-                side_bar_title: file_name.to_string(),
-                top_bar_title: Some(file_name.to_string()),
-                transition1: Some(Transition {
-                    id: file_name.to_string(),
-                    description: Some(String::from("See details")),
-                }),
-                ..Entry::default()
-            });
         }
     }
 
@@ -85,7 +87,7 @@ fn main() {
             title: Some(String::from("Tests")),
             entries: tests,
             transition: None,
-            render_canvas: |_, _| Ok(vec![]),
+            render_canvas: render_test_result,
         },
     );
     shev::run(shev::Config::default(), entries_map, String::from("index"))
@@ -125,8 +127,27 @@ pub struct SingleFileTest {
     hash: String,
 }
 
+fn render_test_result(e: &Entry, _: EntryState) -> Result<Vec<Graphic>, String> {
+    let test_result: TestResult = serde_json::from_str(&e.content.as_ref().unwrap()).map_err(|e| format!("{e:?}"))?;
+    let crate_test_success = test_result.crate_test.iter().filter(|t| t.debug.error.is_none() && t.release.error.is_none() && t.doc.error.is_none()).count();
+    let crate_test_fail = test_result.crate_test.len() - crate_test_success;
+    let single_file_test_success = test_result.single_file_test.iter().filter(|t| t.error.is_none()).count();
+    let single_file_test_fail = test_result.single_file_test.len() - single_file_test_success;
+    Ok(TextBox::new(
+        &format!("
+crate-test: {{ success: {crate_test_success}, fail: {crate_test_fail} }}
+single-file-test: {{ success: {single_file_test_success}, fail: {single_file_test_fail} }}
+meta: {}",
+            serde_json::to_string_pretty(&test_result.meta).unwrap(),
+        ),
+        16.0,
+        Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
+        [20.0, 20.0, 800.0, 2000.0],
+    ).render())
+}
+
 fn render_single_file_test(e: &Entry, es: EntryState) -> Result<Vec<Graphic>, String> {
-    let test_result: SingleFileTest = serde_json::from_str(e.content.as_ref().unwrap()).unwrap();
+    let test_result: SingleFileTest = serde_json::from_str(e.content.as_ref().unwrap()).map_err(|e| format!("{e:?}"))?;
 
     // The main function replaced `test_result.hash` with the file content.
     let file_content = test_result.hash.clone();
@@ -179,16 +200,16 @@ fn apply_ansi_term_color(s: &str) -> (String, Vec<Color>) {
                             curr_color = Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 };
                         },
                         Ok(31) => {
-                            curr_color = Color { r: 0.8, g: 0.2, b: 0.2, a: 1.0 };
+                            curr_color = Color { r: 0.75, g: 0.25, b: 0.25, a: 1.0 };
                         },
                         Ok(32) => {
-                            curr_color = Color { r: 0.2, g: 0.8, b: 0.2, a: 1.0 };
+                            curr_color = Color { r: 0.25, g: 0.75, b: 0.25, a: 1.0 };
                         },
                         Ok(33) => {
-                            curr_color = Color { r: 0.8, g: 0.8, b: 0.2, a: 1.0 };
+                            curr_color = Color { r: 0.75, g: 0.75, b: 0.25, a: 1.0 };
                         },
                         Ok(34) => {
-                            curr_color = Color { r: 0.2, g: 0.2, b: 0.8, a: 1.0 };
+                            curr_color = Color { r: 0.25, g: 0.2, b: 0.75, a: 1.0 };
                         },
                         _ => {},
                     };
@@ -206,12 +227,13 @@ fn apply_ansi_term_color(s: &str) -> (String, Vec<Color>) {
 fn load_blobs(blobs_at: &str) -> HashMap<String, String> {
     let mut result = HashMap::new();
 
-    for pre_dir in read_dir(blobs_at, false).unwrap() {
-        let prefix = basename(&pre_dir).unwrap();
+    for pre_dir in read_dir(blobs_at, false).unwrap_or(vec![]) {
+        let Ok(prefix) = basename(&pre_dir) else { continue; };
 
-        for suffix_full in read_dir(&pre_dir, false).unwrap() {
-            let suffix = basename(&suffix_full).unwrap();
-            result.insert(format!("{prefix}{suffix}"), read_string(&suffix_full).unwrap());
+        for suffix_full in read_dir(&pre_dir, false).unwrap_or(vec![]) {
+            let Ok(suffix) = basename(&suffix_full) else { continue; };
+            let Ok(blob) = read_string(&suffix_full) else { continue; };
+            result.insert(format!("{prefix}{suffix}"), blob);
         }
     }
 
