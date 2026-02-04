@@ -17,6 +17,10 @@ pub struct State {
     pub(crate) camera_zoom: f32,
     pub(crate) popup: Option<(u32, String)>,
 
+    // If you hold Up or Down key for a long time,
+    // that's the same as pressing the key every frame.
+    pub(crate) scrolling_with_arrow_keys: i32,
+
     /// I don't want to call `entry_top_bar_message()` and `entry_canvas()` every frame,
     /// so they're cached. They are called only if `Entry` or `EntryState` changes.
     pub(crate) cache: RenderCache,

@@ -28,6 +28,26 @@ impl State {
             return Action::Quit;
         }
 
+        if input.down_keys.contains(&KeyCode::Down) {
+            self.scrolling_with_arrow_keys = (self.scrolling_with_arrow_keys - 1).min(-1);
+        }
+
+        else if input.down_keys.contains(&KeyCode::Up) {
+            self.scrolling_with_arrow_keys = (self.scrolling_with_arrow_keys + 1).max(1);
+        }
+
+        else {
+            self.scrolling_with_arrow_keys = 0;
+        }
+
+        if self.scrolling_with_arrow_keys < -12 {
+            input.pressed_keys.insert(KeyCode::Down);
+        }
+
+        else if self.scrolling_with_arrow_keys > 12 {
+            input.pressed_keys.insert(KeyCode::Up);
+        }
+
         let is_shift_down = input.pressed_keys.contains(&KeyCode::LeftShift) || input.pressed_keys.contains(&KeyCode::RightShift);
         let is_ctrl_down = input.pressed_keys.contains(&KeyCode::LeftControl) || input.pressed_keys.contains(&KeyCode::RightControl);
         let is_alt_down = input.pressed_keys.contains(&KeyCode::LeftAlt) || input.pressed_keys.contains(&KeyCode::RightAlt);

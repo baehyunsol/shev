@@ -68,6 +68,7 @@ async fn run_inner(
         camera_pos: (450.0, 300.0),
         camera_zoom: 1.0,
         popup: None,
+        scrolling_with_arrow_keys: 0,
         cache: RenderCache::new(initial_entries_id, entries),
     };
     let font = load_ttf_font_from_bytes(include_bytes!("../resources/SpaceMono-Regular.ttf")).unwrap();
