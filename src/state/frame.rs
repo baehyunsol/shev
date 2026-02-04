@@ -1,12 +1,11 @@
 use super::State;
 use crate::action::Action;
-use crate::cache::TextureCache;
 use crate::entry::{Entries, EntryState};
 use crate::input::Input;
 use macroquad::input::KeyCode;
 
 impl State {
-    pub async fn frame(&mut self, entries: &Entries, mut input: Input, textures: &mut TextureCache) -> Action {
+    pub async fn frame(&mut self, entries: &Entries, mut input: Input) -> Action {
         if let Some((life, _)) = &mut self.popup {
             *life -= 1;
 
@@ -298,7 +297,6 @@ impl State {
             }
         }
 
-        self.update_cache(entries, textures).await;
         Action::None
     }
 
@@ -306,9 +304,6 @@ impl State {
         self.popup = Some((120, message.to_string()));
     }
 
-    // TODO: I want it to reset `self.cache`, but it can't.
-    //       Currently, `run_inner` resets the cache, but I don't think
-    //       that's a good implementation.
     fn reset_entries_state(&mut self) {
         self.cursor = 0;
         self.reset_entry_state();

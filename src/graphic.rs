@@ -74,7 +74,7 @@ impl Graphic {
     }
 }
 
-pub fn render(graphics: &[Graphic], font: &Font, textures: &TextureCache, (screen_width, screen_height): (f32, f32)) {
+pub fn render(graphics: &[Graphic], font: &Font, textures: &mut TextureCache, (screen_width, screen_height): (f32, f32)) {
     for graphic in graphics.iter() {
         let [x, y, w, h] = graphic.get_rect();
 

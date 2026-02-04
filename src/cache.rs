@@ -5,47 +5,81 @@ use macroquad::color::Color;
 use macroquad::prelude::ImageFormat;
 use macroquad::texture::{Texture2D, load_texture};
 use std::collections::HashMap;
+use std::hash::Hash;
 
-#[derive(Clone, Debug)]
-pub(crate) struct RenderCache {
-    // If `cursor` or `entry_state` changes, `canvas` has to be re-drawn.
-    // If `entries_id` changes, `scroll_bar_colors` has to be re-calculated.
-    pub cursor: usize,
-    pub entry_state: EntryState,
-    pub canvas: Vec<Graphic>,
-    pub entries_id: String,
-    pub scroll_bar_colors: Vec<Color>,
+// This is for heavy (memory & computation) values.
+// It also assumes that `capacity` isn't that big (less than 100).
+pub struct LRU<K, V> {
+    capacity: usize,
+    data: HashMap<K, V>,
+
+    // order[0] is the least-recently-used key,
+    // and order.last() is the most-recently-used key.
+    // "use" means `get`, `insert` and `contains_key`.
+    order: Vec<K>,
+}
+
+impl<K: Clone + Eq + Hash + PartialEq, V> LRU<K, V> {
+    pub fn with_capacity(capacity: usize) -> LRU<K, V> {
+        LRU {
+            capacity,
+            data: HashMap::new(),
+            order: vec![],
+        }
+    }
+
+    pub fn get(&mut self, key: &K) -> Option<&V> {
+        self.order.sort_by_key(|k| if k == key { 1 } else { 0 });
+        self.data.get(key)
+    }
+
+    pub fn contains_key(&mut self, key: &K) -> bool {
+        self.order.sort_by_key(|k| if k == key { 1 } else { 0 });
+        self.data.contains_key(key)
+    }
+
+    pub fn insert(&mut self, key: K, value: V) {
+        self.order.sort_by_key(|k| if k == &key { 1 } else { 0 });
+
+        if let Some(last) = self.order.last() && last == &key {
+            // nop
+        }
+
+        else {
+            self.order.push(key.clone());
+            self.data.insert(key, value);
+        }
+
+        if self.order.len() > self.capacity {
+            let least_recently_used_key = self.order.remove(0);
+            self.data.remove(&least_recently_used_key);
+        }
+    }
+}
+
+pub struct RenderCache {
+    pub canvas: LRU<(String, usize, EntryState), Vec<Graphic>>,
+    pub scroll_bar_colors: LRU<String, Vec<Color>>,
 }
 
 impl RenderCache {
     pub fn new(entries_id: String, entries: &Entries) -> RenderCache {
         RenderCache {
-            // let's make sure that the initial frame will update the cache
-            cursor: usize::MAX,
-            entry_state: EntryState::Red,
-            canvas: vec![],
-            entries_id: entries_id.to_string(),
-            scroll_bar_colors: calc_scroll_bar_colors(&entries.entries),
+            canvas: LRU::with_capacity(128),
+            scroll_bar_colors: LRU::with_capacity(128),
         }
     }
 }
 
 impl State {
     pub async fn update_cache(&mut self, entries: &Entries, textures: &mut TextureCache) {
-        if (self.cursor, self.entry_state) != (self.cache.cursor, self.cache.entry_state) {
-            self.cache = RenderCache {
-                cursor: self.cursor,
-                entry_state: self.entry_state,
-                canvas: if entries.is_empty() {
-                    vec![]
-                } else {
-                    // TODO: render error message
-                    (entries.render_canvas)(&entries[self.cursor], self.entry_state).unwrap()
-                },
-                ..self.cache.clone()
-            };
+        let canvas_key = (self.curr_entries_id.clone(), self.cursor, self.entry_state);
 
-            for graphic in self.cache.canvas.iter_mut() {
+        if !self.cache.canvas.contains_key(&canvas_key) {
+            // TODO: render error message
+            let mut canvas = (entries.render_canvas)(&entries[self.cursor], self.entry_state).unwrap();
+
+            for graphic in canvas.iter_mut() {
                 match graphic {
                     Graphic::ImageFile { path, x, y, w, h } => {
                         let texture_id = textures.register(path).await;
@@ -54,28 +88,26 @@ impl State {
                     _ => {},
                 }
             }
+
+            self.cache.canvas.insert(canvas_key, canvas);
         }
 
-        if self.curr_entries_id != self.cache.entries_id {
-            self.cache = RenderCache {
-                entries_id: self.curr_entries_id.clone(),
-                scroll_bar_colors: calc_scroll_bar_colors(&entries.entries),
-                ..self.cache.clone()
-            };
+        if !self.cache.scroll_bar_colors.contains_key(&self.curr_entries_id) {
+            self.cache.scroll_bar_colors.insert(self.curr_entries_id.clone(), calc_scroll_bar_colors(&entries.entries));
         }
     }
 }
 
 pub struct TextureCache {
-    data: HashMap<String, Texture2D>,
+    data: LRU<String, Texture2D>,
 }
 
 impl TextureCache {
     pub fn new() -> TextureCache {
-        TextureCache { data: HashMap::new() }
+        TextureCache { data: LRU::with_capacity(64) }
     }
 
-    pub fn get(&self, id: &str) -> Option<&Texture2D> {
+    pub fn get(&mut self, id: &String) -> Option<&Texture2D> {
         self.data.get(id)
     }
 
@@ -83,7 +115,7 @@ impl TextureCache {
         match load_texture(path).await {
             Ok(data) => { self.data.insert(path.to_string(), data); },
             Err(_) => {
-                if !self.data.contains_key("?") {
+                if !self.data.contains_key(&String::from("?")) {
                     let x = Texture2D::from_file_with_format(include_bytes!("../resources/x.png"), Some(ImageFormat::Png));
                     self.data.insert(String::from("?"), x);
                 }

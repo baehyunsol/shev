@@ -108,7 +108,7 @@ impl std::ops::Index<usize> for Entries {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum EntryFlag {
     None,
     Red,
@@ -122,7 +122,7 @@ impl EntryFlag {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum EntryState {
     None,
     Red,
