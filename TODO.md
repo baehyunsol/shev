@@ -1,3 +1,11 @@
+# 9. search by regex
+
+idea: create a tmp `Entries` with the result
+
+# 8. filter by flag/categories
+
+idea: create a tmp `Entries` with the result
+
 # 7. mouse-GUI
 
 1. click an entry in entries to move cursor

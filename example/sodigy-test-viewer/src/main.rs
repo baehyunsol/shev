@@ -35,8 +35,7 @@ fn main() {
             let result: TestResult = serde_json::from_str(&read_string(&file).unwrap()).unwrap();
             let mut entries = vec![];
             tests.push(Entry {
-                side_bar_title: file_name.to_string(),
-                top_bar_title: Some(file_name.to_string()),
+                name: file_name.to_string(),
                 content: Some(serde_json::to_string(&result).unwrap()),
                 transition1: Some(Transition {
                     id: file_name.to_string(),
@@ -49,20 +48,18 @@ fn main() {
                 // Some old results have a trailing newline character
                 let hash = single_file_test.hash.trim();
 
-                // There's no place to store this information, so I'll reuse this field.
-                single_file_test.hash = match blobs.get(hash) {
-                    Some(blob) => blob.to_string(),
+                single_file_test.__test_file_blob = match blobs.get(hash) {
+                    Some(blob) => Some(blob.to_string()),
                     None => match try_load_blob_from_git(&sodigy_at, hash) {
-                        Ok(blob) => blob,
-                        Err(_) => format!("Error: failed to load blob `{hash}`")
+                        Ok(blob) => Some(blob),
+                        Err(_) => Some(format!("Error: failed to load blob `{hash}`")),
                     },
                 };
+                single_file_test.__test_result_meta = Some(result.meta.clone());
 
                 entries.push(Entry {
-                    side_bar_title: single_file_test.name.to_string(),
-                    top_bar_title: Some(single_file_test.name.to_string()),
+                    name: single_file_test.name.to_string(),
                     content: Some(serde_json::to_string(&single_file_test).unwrap()),
-                    extra_content: Some(serde_json::to_string_pretty(&result.meta).unwrap()),
                     flag: if single_file_test.error.is_some() {
                         EntryFlag::Red
                     } else {
@@ -78,11 +75,13 @@ fn main() {
                     id: file_name.to_string(),
                     title: Some(file_name.to_string()),
                     entries,
+                    entry_state_count: 3,
                     transition: Some(Transition {
                         id: String::from("index"),
                         description: Some(String::from("go back to index")),
                     }),
                     render_canvas: render_single_file_test,
+                    ..Entries::default()
                 },
             );
         }
@@ -96,6 +95,7 @@ fn main() {
             entries: tests,
             transition: None,
             render_canvas: render_test_result,
+            ..Entries::default()
         },
     );
     shev::run(shev::Config::default(), entries_map, String::from("index"))
@@ -133,6 +133,8 @@ pub struct SingleFileTest {
     stdout: String,
     stderr: String,
     hash: String,
+    __test_file_blob: Option<String>,
+    __test_result_meta: Option<HashMap<String, String>>,
 }
 
 fn render_test_result(e: &Entry, _: EntryState) -> Result<Vec<Graphic>, String> {
@@ -156,13 +158,13 @@ meta: {}",
 
 fn render_single_file_test(e: &Entry, es: EntryState) -> Result<Vec<Graphic>, String> {
     let test_result: SingleFileTest = serde_json::from_str(e.content.as_ref().unwrap()).map_err(|e| format!("{e:?}"))?;
-
-    // The main function replaced `test_result.hash` with the file content.
-    let file_content = test_result.hash.clone();
+    let file_content = test_result.__test_file_blob.clone().unwrap();
 
     let s = match es {
-        EntryState::None | EntryState::Green => file_content,
-        EntryState::Red | EntryState::Blue => format!("# stdout\n\n```\n{}\n```\n\n# stderr\n\n```\n{}\n```", test_result.stdout, test_result.stderr),
+        EntryState(0) => file_content,
+        EntryState(1) => format!("# stdout\n\n```\n{}\n```\n\n# stderr\n\n```\n{}\n```", test_result.stdout, test_result.stderr),
+        EntryState(2) => serde_json::to_string_pretty(&test_result.__test_result_meta.clone().unwrap()).unwrap(),
+        _ => unreachable!(),
     };
     let (s, colors) = apply_ansi_term_color(&s);
     Ok(TextBox::new(

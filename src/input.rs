@@ -12,6 +12,7 @@ use macroquad::input::{
 };
 use std::collections::HashSet;
 
+#[derive(Clone, Debug)]
 pub struct Input {
     pub mouse_pos: (f32, f32),
     pub mouse_wheel: (f32, f32),

@@ -1,9 +1,8 @@
 use crate::Graphic;
 
 pub struct Entry {
-    /// Users see this text in the side-bar.
-    pub side_bar_title: String,
-    pub top_bar_title: Option<String>,
+    /// Users see this name in the side-bar.
+    pub name: String,
 
     /// There's no way for the users to directly see this content.
     /// Instead, you have to implement `render_canvas` function
@@ -11,14 +10,14 @@ pub struct Entry {
     /// The most straight forward way is to use `Graphic::text_box` function.
     pub content: Option<String>,
 
-    /// Users can see the extra content with C key, if exists.
-    pub extra_content: Option<String>,
+    /// TODO: regex pattern matching
+    ///
+    /// If an `Entry` has a `.search_corpus`, shev's regex search engine will
+    /// use this corpus instead of `.content`.
+    pub search_corpus: Option<String>,
 
-    /// `category1` and `category2` are not visible to the users.
-    /// But if you set these, users can jump to next/prev
-    /// categories using Ctrl(+Shift)+up/down.
-    pub category1: Option<String>,
-    pub category2: Option<String>,
+    /// The user can filter `Entry`s by categories. (WIP)
+    pub categories: Vec<String>,
 
     /// `transition1` and `transition2` have ids of another `Entries`.
     /// The user can transit to this `Entries` with K/L key.
@@ -29,18 +28,21 @@ pub struct Entry {
     /// Users can also jump to next/prev entry with the same flag using Space key.
     /// This is immutable. The users cannot change flag. For mutable states,
     /// use `EntryState`.
+    ///
+    /// If you're using shev to render a result of a test suite, you can use this to
+    /// indicate whether a test case is successful.
+    ///
+    /// TODO: filter by flag
     pub flag: EntryFlag,
 }
 
 impl Default for Entry {
     fn default() -> Entry {
         Entry {
-            side_bar_title: String::new(),
-            top_bar_title: None,
+            name: String::new(),
             content: None,
-            extra_content: None,
-            category1: None,
-            category2: None,
+            search_corpus: None,
+            categories: vec![],
             transition1: None,
             transition2: None,
             flag: EntryFlag::None,
@@ -53,6 +55,14 @@ pub struct Entries {
     pub title: Option<String>,
     pub entries: Vec<Entry>,
 
+    /// How many states an entry can have.
+    /// You might want to implement multiple views for an entry.
+    /// Let's say you want 3 views (view A, view B and view C). Then you set
+    /// this value to 3, and make `render_canvas` render different views
+    /// according to `EntryState` value. The user can change `EntryState`
+    /// by pressing M Key.
+    pub entry_state_count: u32,
+
     /// This has an id of another `Entries`.
     /// The user can transit to this `Entries` with J key.
     pub transition: Option<Transition>,
@@ -64,10 +74,11 @@ pub struct Entries {
     /// This function is cached. It's called only when a new `Entry` is selected or
     /// `EntryState` is changed.
     ///
-    /// The user can change `EntryState` by pressing M key. The state changes in
-    /// `None` -> `Red` -> `Green` -> `Blue` order, and it's set to `None` when
-    /// a new `Entry` is selected.
+    /// The user can change `EntryState` by pressing M key.
     pub render_canvas: fn(&Entry, EntryState) -> Result<Vec<Graphic>, String>,
+
+    /// If you set this, you can dump extra message to the top-bar.
+    pub render_top_bar_extra_message: Option<fn(&Entry, EntryState) -> Option<String>>,
 }
 
 impl Entries {
@@ -94,8 +105,10 @@ impl Default for Entries {
             id: String::new(),
             title: None,
             entries: vec![],
+            entry_state_count: 1,
             transition: None,
             render_canvas: |_, _| Ok(vec![]),
+            render_top_bar_extra_message: None,
         }
     }
 }
@@ -123,24 +136,7 @@ impl EntryFlag {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum EntryState {
-    None,
-    Red,
-    Green,
-    Blue,
-}
-
-impl EntryState {
-    #[must_use = "method returns a new value and does not mutate the original value"]
-    pub fn next(&self) -> EntryState {
-        match self {
-            EntryState::None => EntryState::Red,
-            EntryState::Red => EntryState::Green,
-            EntryState::Green => EntryState::Blue,
-            EntryState::Blue => EntryState::None,
-        }
-    }
-}
+pub struct EntryState(pub u32);
 
 #[derive(Clone, Debug)]
 pub struct Transition {

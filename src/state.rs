@@ -13,7 +13,6 @@ pub struct State {
     pub wide_side_bar: bool,
     pub hovered_entry: Option<usize>,
     pub show_help: bool,
-    pub show_extra_content: bool,
     pub camera_pos: (f32, f32),
     pub camera_zoom: f32,
     pub popup: Option<(u32, String)>,

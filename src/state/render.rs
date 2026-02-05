@@ -17,10 +17,6 @@ impl State {
         self.render_top_bar(config, entries, &mut graphics);
         self.render_side_bar(input, config, entries, &mut graphics);
 
-        if self.show_extra_content {
-            self.render_extra_content(entries, &mut graphics);
-        }
-
         if self.show_help {
             self.render_help(entries, &mut graphics);
         }
@@ -52,16 +48,16 @@ impl State {
         }
 
         if !entries.is_empty() {
-            if let Some(top_bar_title) = &entries[self.cursor].top_bar_title {
-                lines.push((top_bar_title.to_string(), entries[self.cursor].flag, false));
-            }
+            let entry = &entries[self.cursor];
+            lines.push((entry.name.to_string(), entry.flag, false));
         }
 
+        let shift_or_ctrl = if cfg!(target_os = "macos") { "Shift" } else { "Ctrl" };
         lines.push((format!(
             "{}{}{}H: Help",
-            if let Some(t) = &entries.transition { format!("J: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
-            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition1) { format!("K: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
-            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition2) { format!("L: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
+            if let Some(t) = &entries.transition { format!("{shift_or_ctrl}+Up: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
+            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition1) { format!("{shift_or_ctrl}+Left: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
+            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition2) { format!("{shift_or_ctrl}+Right: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
         ), EntryFlag::None, true));
         let (font_size, mut curr_y, line_height) = match lines.len() {
             0 | 1 => (21.0, 60.0, 0.0),
@@ -151,10 +147,10 @@ impl State {
         let mut is_hovering_on_something = false;
 
         for i in list_start..list_end {
-            let truncated_title = if entries[i].side_bar_title.chars().count() > (title_max_len + 4) {
-                format!("{}...", entries[i].side_bar_title.chars().take(title_max_len).collect::<String>())
+            let truncated_title = if entries[i].name.chars().count() > (title_max_len + 4) {
+                format!("{}...", entries[i].name.chars().take(title_max_len).collect::<String>())
             } else {
-                entries[i].side_bar_title.to_string()
+                entries[i].name.to_string()
             };
             let bullet = match (i == self.cursor, Some(i) == self.hovered_entry) {
                 (true, false) => ">>",
@@ -379,9 +375,7 @@ impl State {
             },
         });
         let has_entry = !entries.is_empty();
-        let has_category1 = entries.iter().any(|entry| entry.category1.is_some());
-        let has_category2 = entries.iter().any(|entry| entry.category2.is_some());
-        let has_flag = entries.iter().any(|entry| entry.flag.is_some());
+        let has_entry_state = entries.entry_state_count > 1;
         let has_something_on_canvas = !self.curr_canvas().unwrap_or(&vec![]).is_empty();
         let has_transition = entries.transition.is_some() || entries.iter().any(|entry| entry.transition1.is_some() || entry.transition2.is_some());
         let lines = [
@@ -389,18 +383,14 @@ impl State {
             ("Left/Right: Toggle side-bar", true),
             ("Up/Down: Jump to prev/next entry", has_entry),
             ("1~9: Quick jump", has_entry),
-            ("Ctrl + Up/Down: Jump to prev/next category-1", has_category1),
-            ("Ctrl + Shift + Up/Down: Jump to prev/next category-2", has_category2),
-            ("Space: Jump to next entry with the same flag", has_flag),
-            ("Alt + Space: Jump to prev entry with the same flag", has_flag),
             ("W/A/S/D: Move camera", has_something_on_canvas),
             ("Shift + W/A/S/D: Move camera faster", has_something_on_canvas),
             ("Z/X: Zoom In/Out", has_something_on_canvas),
             ("Shift + Z/X: Zoom In/Out faster", has_something_on_canvas),
             ("H: See help message", true),
-            ("M: Change entry state", has_entry),
-            ("J/K/L: Transit to another entries. It may or may not be available. See the top-bar", has_transition),
-            ("       to know which entries each key is mapped.", has_transition),
+            ("M: Change entry state", has_entry_state),
+            ("Ctrl + Up/Left/Right: Transit to another entries. It may or may not be available.", has_transition),
+            ("                      See the top-bar to know which entries each key is mapped to.", has_transition),
         ];
         let help_message = lines.into_iter().filter(|(_, show)| *show).map(|(s, _)| s).collect::<Vec<_>>().join("\n");
         graphics.extend(TextBox::new(
@@ -409,45 +399,6 @@ impl State {
             Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
             [72.0, 72.0, 936.0, 400.0],
         ).render());
-    }
-
-    fn render_extra_content(&self, entries: &Entries, graphics: &mut Vec<Graphic>) {
-        if let Some(extra_content) = &entries[self.cursor].extra_content {
-            graphics.push(Graphic::Rect {
-                x: 30.0,
-                y: 30.0,
-                w: 1020.0,
-                h: 660.0,
-                radius: Some(12.0),
-                thickness: None,
-                color: Color {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 1.0,
-                },
-            });
-            graphics.push(Graphic::Rect {
-                x: 40.0,
-                y: 40.0,
-                w: 1000.0,
-                h: 640.0,
-                radius: Some(12.0),
-                thickness: None,
-                color: Color {
-                    r: 0.0,
-                    g: 0.0,
-                    b: 0.0,
-                    a: 1.0,
-                },
-            });
-            graphics.extend(TextBox::new(
-                &extra_content,
-                18.0,
-                Color { r: 1.0, g: 1.0, b: 1.0, a: 1.0 },
-                [72.0, 72.0, 936.0, 400.0],
-            ).render());
-        }
     }
 
     fn render_popup(&self, graphics: &mut Vec<Graphic>) {

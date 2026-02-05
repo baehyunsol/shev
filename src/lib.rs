@@ -61,11 +61,10 @@ async fn run_inner(
     let mut state = State {
         curr_entries_id: initial_entries_id.to_string(),
         cursor: 0,
-        entry_state: EntryState::None,
+        entry_state: EntryState(0),
         wide_side_bar: false,
         hovered_entry: None,
         show_help: false,
-        show_extra_content: false,
         camera_pos: (450.0, 300.0),
         camera_zoom: 1.0,
         popup: None,
@@ -78,17 +77,9 @@ async fn run_inner(
         let (s_w, s_h) = (screen_width(), screen_height());
         let mut input = get_input();
         fit_input_to_screen(&mut input, 1080.0, 720.0, s_w, s_h);
-
-        // There should be no state-update between `state.update_cache` and `state.render`.
-        state.update_cache(entries, &mut texture_cache).await;
         let frame_started_at = Instant::now();
 
-        let mut graphics = state.render(&input, entries, &conf);
-        hide_off_screen(&mut graphics, 1080.0, 720.0);
-        fit_graphics_to_screen(&mut graphics, 1080.0, 720.0, s_w, s_h);
-        graphic::render(&graphics, &font, &mut texture_cache, (s_w, s_h));
-
-        match state.frame(&entries, input).await {
+        match state.frame(&entries, &input).await {
             Action::None => {},
             Action::Transit(id) => {
                 entries = entries_map.get(&id).unwrap();
@@ -98,6 +89,12 @@ async fn run_inner(
                 break;
             },
         }
+
+        state.update_cache(entries, &mut texture_cache).await;
+        let mut graphics = state.render(&input, entries, &conf);
+        hide_off_screen(&mut graphics, 1080.0, 720.0);
+        fit_graphics_to_screen(&mut graphics, 1080.0, 720.0, s_w, s_h);
+        graphic::render(&graphics, &font, &mut texture_cache, (s_w, s_h));
 
         next_frame().await;
         let elapsed_time = Instant::now().duration_since(frame_started_at).as_millis() as u64;

@@ -30,8 +30,8 @@ fn build_entries(entries_map: &mut HashMap<String, Entries>, path: &str, parent:
         if is_dir(&file) {
             build_entries(entries_map, &file, Some(path));
             entries.push(Entry {
-                side_bar_title: basename(&file).unwrap(),
-                top_bar_title: Some(file.to_string()),
+                name: basename(&file).unwrap(),
+                content: Some(file.to_string()),
                 transition1: Some(Transition {
                     id: file.to_string(),
                     description: Some(String::from("change directory")),
@@ -43,8 +43,8 @@ fn build_entries(entries_map: &mut HashMap<String, Entries>, path: &str, parent:
 
         else {
             entries.push(Entry {
-                side_bar_title: basename(&file).unwrap(),
-                top_bar_title: Some(file.to_string()),
+                name: basename(&file).unwrap(),
+                content: Some(file.to_string()),
                 flag: EntryFlag::Blue,
                 ..Entry::default()
             });
@@ -57,8 +57,9 @@ fn build_entries(entries_map: &mut HashMap<String, Entries>, path: &str, parent:
             id: path.to_string(),
             title: Some(path.to_string()),
             entries,
+            entry_state_count: 1,
             transition: parent.map(|p| Transition { id: p.to_string(), description: Some(String::from("move to parent directory")) }),
-            render_canvas: |entry, _| match (entry.top_bar_title.as_ref().unwrap(), entry.flag) {
+            render_canvas: |entry, _| match (entry.content.as_ref().unwrap(), entry.flag) {
                 (f, EntryFlag::Green) => {
                     let s = match read_dir(f, true) {
                         Ok(files) => format!(
@@ -99,6 +100,7 @@ fn build_entries(entries_map: &mut HashMap<String, Entries>, path: &str, parent:
                     ).render())
                 },
             },
+            ..Entries::default()
         },
     );
 }

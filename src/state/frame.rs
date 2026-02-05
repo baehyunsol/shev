@@ -6,8 +6,10 @@ use crate::transform::check_contain;
 use macroquad::input::KeyCode;
 
 impl State {
-    pub async fn frame(&mut self, entries: &Entries, mut input: Input) -> Action {
+    pub async fn frame(&mut self, entries: &Entries, input: &Input) -> Action {
         let original_cursor = self.cursor;
+        let mut scroll_up = false;
+        let mut scroll_down = false;
 
         if let Some((life, _)) = &mut self.popup {
             *life -= 1;
@@ -20,11 +22,6 @@ impl State {
         if input.released_keys.contains(&KeyCode::Escape) {
             if self.show_help {
                 self.show_help = false;
-                return Action::None;
-            }
-
-            if self.show_extra_content {
-                self.show_extra_content = false;
                 return Action::None;
             }
 
@@ -44,159 +41,71 @@ impl State {
         }
 
         if self.scrolling_with_arrow_keys < -12 {
-            input.pressed_keys.insert(KeyCode::Down);
+            scroll_down = true;
         }
 
         else if self.scrolling_with_arrow_keys > 12 {
-            input.pressed_keys.insert(KeyCode::Up);
+            scroll_up = true;
         }
 
-        let is_shift_down = input.pressed_keys.contains(&KeyCode::LeftShift) || input.pressed_keys.contains(&KeyCode::RightShift);
-        let is_ctrl_down = input.pressed_keys.contains(&KeyCode::LeftControl) || input.pressed_keys.contains(&KeyCode::RightControl);
-        let is_alt_down = input.pressed_keys.contains(&KeyCode::LeftAlt) || input.pressed_keys.contains(&KeyCode::RightAlt);
+        #[cfg(target_os="macos")]
+        let is_ctrl_down = input.down_keys.contains(&KeyCode::LeftSuper) || input.down_keys.contains(&KeyCode::RightSuper);
+        #[cfg(not(target_os="macos"))]
+        let is_ctrl_down = input.down_keys.contains(&KeyCode::LeftControl) || input.down_keys.contains(&KeyCode::RightControl);
+
+        let is_shift_down = input.down_keys.contains(&KeyCode::LeftShift) || input.down_keys.contains(&KeyCode::RightShift);
+        let is_alt_down = input.down_keys.contains(&KeyCode::LeftAlt) || input.down_keys.contains(&KeyCode::RightAlt);
         let side_bar_start = if self.wide_side_bar { 600.0 } else { 900.0 };
 
-        if !entries.is_empty() {
-            let mut scroll_speed = 1;
+        if !is_shift_down && !is_ctrl_down && !is_alt_down {
+            if !entries.is_empty() {
+                let mut scroll_speed = 1;
 
-            if input.mouse_wheel.1 < 0.0 && input.mouse_pos.0 >= side_bar_start {
-                input.pressed_keys.insert(KeyCode::Down);
-                scroll_speed = (entries.len() / 32).max(1);
-            }
-
-            else if input.mouse_wheel.1 > 0.0 && input.mouse_pos.0 >= side_bar_start {
-                input.pressed_keys.insert(KeyCode::Up);
-                scroll_speed = (entries.len() / 32).max(1);
-            }
-
-            if input.pressed_keys.contains(&KeyCode::Down) {
-                if is_ctrl_down {
-                    // Ctrl+Shift+Down: jump to next category 2
-                    if is_shift_down {
-                        let curr_cat = &entries[self.cursor].category2;
-
-                        for _ in 0..entries.len() {
-                            self.cursor = (self.cursor + 1) % entries.len();
-
-                            if &entries[self.cursor].category2 != curr_cat {
-                                break;
-                            }
-                        }
-                    }
-
-                    // Ctrl+Down: jump to next category 1
-                    else {
-                        let curr_cat = &entries[self.cursor].category1;
-
-                        for _ in 0..entries.len() {
-                            self.cursor = (self.cursor + 1) % entries.len();
-
-                            if &entries[self.cursor].category1 != curr_cat {
-                                break;
-                            }
-                        }
-                    }
+                if input.mouse_wheel.1 < 0.0 && input.mouse_pos.0 >= side_bar_start {
+                    scroll_down = true;
+                    scroll_speed = (entries.len() / 32).max(1);
                 }
 
-                // Down: jump to next entry
-                else {
+                else if input.mouse_wheel.1 > 0.0 && input.mouse_pos.0 >= side_bar_start {
+                    scroll_up = true;
+                    scroll_speed = (entries.len() / 32).max(1);
+                }
+
+                if input.pressed_keys.contains(&KeyCode::Down) || scroll_down {
                     self.cursor = (self.cursor + scroll_speed) % entries.len();
                 }
-            }
 
-            else if input.pressed_keys.contains(&KeyCode::Up) {
-                if is_ctrl_down {
-                    // Ctrl+Shift+Up: jump to prev category 2
-                    if is_shift_down {
-                        let curr_cat = &entries[self.cursor].category2;
-
-                        for _ in 0..entries.len() {
-                            self.cursor = (self.cursor + entries.len() - 1) % entries.len();
-
-                            if &entries[self.cursor].category2 != curr_cat {
-                                break;
-                            }
-                        }
-                    }
-
-                    // Ctrl+Down: jump to prev category 1
-                    else {
-                        let curr_cat = &entries[self.cursor].category1;
-
-                        for _ in 0..entries.len() {
-                            self.cursor = (self.cursor + entries.len() - 1) % entries.len();
-
-                            if &entries[self.cursor].category1 != curr_cat {
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                // Down: jump to prev entry
-                else {
+                else if input.pressed_keys.contains(&KeyCode::Up) || scroll_up {
                     self.cursor = (self.cursor + entries.len() - scroll_speed) % entries.len();
                 }
-            }
 
-            else if input.pressed_keys.contains(&KeyCode::Space) {
-                // Alt+Space: jump to prev entry with the same flag
-                if is_alt_down {
-                    let curr_flag = &entries[self.cursor].flag;
+                let n = if input.pressed_keys.contains(&KeyCode::Key1) {
+                    Some(0)
+                } else if input.pressed_keys.contains(&KeyCode::Key2) {
+                    Some(1)
+                } else if input.pressed_keys.contains(&KeyCode::Key3) {
+                    Some(2)
+                } else if input.pressed_keys.contains(&KeyCode::Key4) {
+                    Some(3)
+                } else if input.pressed_keys.contains(&KeyCode::Key5) {
+                    Some(4)
+                } else if input.pressed_keys.contains(&KeyCode::Key6) {
+                    Some(5)
+                } else if input.pressed_keys.contains(&KeyCode::Key7) {
+                    Some(6)
+                } else if input.pressed_keys.contains(&KeyCode::Key8) {
+                    Some(7)
+                } else if input.pressed_keys.contains(&KeyCode::Key9) {
+                    Some(8)
+                } else {
+                    None
+                };
 
-                    for _ in 0..entries.len() {
-                        self.cursor = (self.cursor + entries.len() - 1) % entries.len();
-
-                        if &entries[self.cursor].flag == curr_flag {
-                            break;
-                        }
-                    }
-                }
-
-                // Space: jump to next entry with the same flag
-                else {
-                    let curr_flag = &entries[self.cursor].flag;
-
-                    for _ in 0..entries.len() {
-                        self.cursor = (self.cursor + 1) % entries.len();
-
-                        if &entries[self.cursor].flag == curr_flag {
-                            break;
-                        }
-                    }
+                if let Some(n) = n {
+                    self.cursor = n * (entries.len() - 1) / 8;
                 }
             }
 
-            let n = if is_shift_down || is_ctrl_down || is_alt_down {
-                None
-            } else if input.pressed_keys.contains(&KeyCode::Key1) {
-                Some(0)
-            } else if input.pressed_keys.contains(&KeyCode::Key2) {
-                Some(1)
-            } else if input.pressed_keys.contains(&KeyCode::Key3) {
-                Some(2)
-            } else if input.pressed_keys.contains(&KeyCode::Key4) {
-                Some(3)
-            } else if input.pressed_keys.contains(&KeyCode::Key5) {
-                Some(4)
-            } else if input.pressed_keys.contains(&KeyCode::Key6) {
-                Some(5)
-            } else if input.pressed_keys.contains(&KeyCode::Key7) {
-                Some(6)
-            } else if input.pressed_keys.contains(&KeyCode::Key8) {
-                Some(7)
-            } else if input.pressed_keys.contains(&KeyCode::Key9) {
-                Some(8)
-            } else {
-                None
-            };
-
-            if let Some(n) = n {
-                self.cursor = n * (entries.len() - 1) / 8;
-            }
-        }
-
-        if !is_shift_down && !is_ctrl_down && !is_alt_down {
             if input.pressed_keys.contains(&KeyCode::Left) {
                 self.wide_side_bar = true;
             }
@@ -207,32 +116,19 @@ impl State {
 
             if input.pressed_keys.contains(&KeyCode::H) {
                 self.show_help = !self.show_help;
-
-                if self.show_help {
-                    self.show_extra_content = false;
-                }
             }
 
-            if input.pressed_keys.contains(&KeyCode::C) {
-                if !self.show_help {
-                    self.show_extra_content = !self.show_extra_content;
-
-                    if self.show_extra_content && (entries.is_empty() || entries[self.cursor].extra_content.is_none()) {
-                        self.show_popup("There's no extra content to display.");
-                        self.show_extra_content = false;
-                    }
-                }
-            }
-
-            // TODO: do I have to reset camera after this?
             if input.pressed_keys.contains(&KeyCode::M) {
-                self.entry_state = self.entry_state.next();
+                self.entry_state.0 = (self.entry_state.0 + 1) % entries.entry_state_count;
+                // self.reset_entry_state();
             }
+        }
 
+        if is_shift_down {
             for (key, key_code, transition) in [
-                ("J", KeyCode::J, &entries.transition),
-                ("K", KeyCode::K, &entries.get(self.cursor).map(|entry| entry.transition1.clone()).unwrap_or(None)),
-                ("L", KeyCode::L, &entries.get(self.cursor).map(|entry| entry.transition2.clone()).unwrap_or(None)),
+                ("Up", KeyCode::Up, &entries.transition),
+                ("Left", KeyCode::Left, &entries.get(self.cursor).map(|entry| entry.transition1.clone()).unwrap_or(None)),
+                ("Right", KeyCode::Right, &entries.get(self.cursor).map(|entry| entry.transition2.clone()).unwrap_or(None)),
             ] {
                 if input.pressed_keys.contains(&key_code) {
                     if let Some(transition) = transition {
@@ -242,55 +138,62 @@ impl State {
                     }
 
                     else {
-                        self.show_popup(&format!("There's no transition mapped to {key} key."));
+                        self.show_popup(&format!(
+                            "There's no transition mapped to {}+{key} key.",
+                            if cfg!(target_os="macos") { "Shift" } else { "Ctrl" },
+                        ));
                     }
                 }
             }
         }
 
         let mut camera_move_speed = 1.0;
+        let mut scroll_up = false;
+        let mut scroll_down = false;
+        let mut scroll_left = false;
+        let mut scroll_right = false;
 
         if input.mouse_pos.0 < side_bar_start {
             if input.mouse_wheel.0 < 0.0 {
-                input.down_keys.insert(KeyCode::A);
+                scroll_left = true;
                 camera_move_speed = 3.0;
             }
 
             if input.mouse_wheel.0 > 0.0 {
-                input.down_keys.insert(KeyCode::D);
+                scroll_right = true;
                 camera_move_speed = 3.0;
             }
 
             if input.mouse_wheel.1 < 0.0 {
-                input.down_keys.insert(KeyCode::W);
+                scroll_up = true;
                 camera_move_speed = 3.0;
             }
 
             if input.mouse_wheel.1 > 0.0 {
-                input.down_keys.insert(KeyCode::S);
+                scroll_down = true;
                 camera_move_speed = 3.0;
             }
         }
 
-        let (camera_move_speed, zoom_faster) = if input.down_keys.contains(&KeyCode::LeftShift) || input.down_keys.contains(&KeyCode::RightShift) {
+        let (camera_move_speed, zoom_faster) = if is_shift_down {
             (40.0 / self.camera_zoom * camera_move_speed, true)
         } else {
             (10.0 / self.camera_zoom * camera_move_speed, false)
         };
 
-        if input.down_keys.contains(&KeyCode::W) {
+        if input.down_keys.contains(&KeyCode::W) || scroll_up {
             self.camera_pos.1 -= camera_move_speed;
         }
 
-        if input.down_keys.contains(&KeyCode::A) {
+        if input.down_keys.contains(&KeyCode::A) || scroll_left {
             self.camera_pos.0 -= camera_move_speed;
         }
 
-        if input.down_keys.contains(&KeyCode::S) {
+        if input.down_keys.contains(&KeyCode::S) || scroll_down {
             self.camera_pos.1 += camera_move_speed;
         }
 
-        if input.down_keys.contains(&KeyCode::D) {
+        if input.down_keys.contains(&KeyCode::D) || scroll_right {
             self.camera_pos.0 += camera_move_speed;
         }
 
@@ -350,8 +253,7 @@ impl State {
     }
 
     fn reset_entry_state(&mut self) {
-        self.entry_state = EntryState::None;
-        self.show_extra_content = false;
+        self.entry_state = EntryState(0);
         self.camera_pos = (450.0, 300.0);
         self.camera_zoom = 1.0;
     }
