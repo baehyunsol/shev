@@ -48,11 +48,7 @@ impl State {
             scroll_up = true;
         }
 
-        #[cfg(target_os="macos")]
-        let is_ctrl_down = input.down_keys.contains(&KeyCode::LeftSuper) || input.down_keys.contains(&KeyCode::RightSuper);
-        #[cfg(not(target_os="macos"))]
         let is_ctrl_down = input.down_keys.contains(&KeyCode::LeftControl) || input.down_keys.contains(&KeyCode::RightControl);
-
         let is_shift_down = input.down_keys.contains(&KeyCode::LeftShift) || input.down_keys.contains(&KeyCode::RightShift);
         let is_alt_down = input.down_keys.contains(&KeyCode::LeftAlt) || input.down_keys.contains(&KeyCode::RightAlt);
         let side_bar_start = if self.wide_side_bar { 600.0 } else { 900.0 };
@@ -124,7 +120,7 @@ impl State {
             }
         }
 
-        if is_shift_down {
+        if is_ctrl_down {
             for (key, key_code, transition) in [
                 ("Up", KeyCode::Up, &entries.transition),
                 ("Left", KeyCode::Left, &entries.get(self.cursor).map(|entry| entry.transition1.clone()).unwrap_or(None)),
@@ -138,10 +134,7 @@ impl State {
                     }
 
                     else {
-                        self.show_popup(&format!(
-                            "There's no transition mapped to {}+{key} key.",
-                            if cfg!(target_os="macos") { "Shift" } else { "Ctrl" },
-                        ));
+                        self.show_popup(&format!("There's no transition mapped to Ctrl+{key} key."));
                     }
                 }
             }

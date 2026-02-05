@@ -52,12 +52,11 @@ impl State {
             lines.push((entry.name.to_string(), entry.flag, false));
         }
 
-        let shift_or_ctrl = if cfg!(target_os = "macos") { "Shift" } else { "Ctrl" };
         lines.push((format!(
             "{}{}{}H: Help",
-            if let Some(t) = &entries.transition { format!("{shift_or_ctrl}+Up: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
-            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition1) { format!("{shift_or_ctrl}+Left: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
-            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition2) { format!("{shift_or_ctrl}+Right: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
+            if let Some(t) = &entries.transition { format!("Ctrl+Up: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
+            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition1) { format!("Ctrl+Left: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
+            if let Some(Some(t)) = &entries.get(self.cursor).map(|e| &e.transition2) { format!("Ctrl+Right: {}, ", t.description.as_ref().unwrap_or(&t.id)) } else { String::new() },
         ), EntryFlag::None, true));
         let (font_size, mut curr_y, line_height) = match lines.len() {
             0 | 1 => (21.0, 60.0, 0.0),
@@ -389,8 +388,7 @@ impl State {
             ("Shift + Z/X: Zoom In/Out faster", has_something_on_canvas),
             ("H: See help message", true),
             ("M: Change entry state", has_entry_state),
-            ("Ctrl + Up/Left/Right: Transit to another entries. It may or may not be available.", has_transition),
-            ("                      See the top-bar to know which entries each key is mapped to.", has_transition),
+            ("Ctrl + Up/Left/Right: Transit to another entries", has_transition),
         ];
         let help_message = lines.into_iter().filter(|(_, show)| *show).map(|(s, _)| s).collect::<Vec<_>>().join("\n");
         graphics.extend(TextBox::new(

@@ -29,3 +29,5 @@ It is likely that an entry has multiple views. For example, if an `Entry` is a r
 ## Known issues
 
 There's a [bug](https://github.com/not-fl3/macroquad/issues/980) in macroquad. So you should NEVER press CMD key if you're using MacOS.
+
+`shev` uses Ctrl+Up/Left/Right to move between entries, but MacOS will intercept Ctrl+Up/Left/Right by default. You can disable the MacOS behaviour in Settings > Keyboard > Keyboard Shortcuts > Mission Control.
