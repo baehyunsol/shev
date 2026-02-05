@@ -1,6 +1,6 @@
 use super::State;
 use crate::action::Action;
-use crate::entry::{Entries, EntryState};
+use crate::entry::{Entries, Entry, EntryState, Transition};
 use crate::input::Input;
 use crate::transform::check_contain;
 use macroquad::input::KeyCode;
@@ -10,6 +10,10 @@ impl State {
         let original_cursor = self.cursor;
         let mut scroll_up = false;
         let mut scroll_down = false;
+        let num_keys = [KeyCode::Key0, KeyCode::Key1, KeyCode::Key2, KeyCode::Key3, KeyCode::Key4, KeyCode::Key5, KeyCode::Key6, KeyCode::Key7, KeyCode::Key8, KeyCode::Key9];
+        let is_ctrl_down = input.down_keys.contains(&KeyCode::LeftControl) || input.down_keys.contains(&KeyCode::RightControl);
+        let is_shift_down = input.down_keys.contains(&KeyCode::LeftShift) || input.down_keys.contains(&KeyCode::RightShift);
+        let is_alt_down = input.down_keys.contains(&KeyCode::LeftAlt) || input.down_keys.contains(&KeyCode::RightAlt);
 
         if let Some((life, _)) = &mut self.popup {
             *life -= 1;
@@ -26,6 +30,47 @@ impl State {
             }
 
             return Action::Quit;
+        }
+
+        if is_ctrl_down && !is_shift_down && !is_alt_down {
+            for (i, num_key) in num_keys[1..].iter().enumerate() {
+                if input.pressed_keys.contains(num_key) && let Some(filter) = entries.filters.get(i) {
+                    let mut new_cursor = None;
+                    let filtered_entries = entries.iter().map(|e| (e, (filter.cond)(e)));
+                    let new_entries: Vec<Entry> = filtered_entries.into_iter().enumerate().map(
+                        |(j, (e, cond))| (e.clone(), cond, j == self.cursor)
+                    ).filter(
+                        |(_, cond, _)| *cond
+                    ).enumerate().map(
+                        |(j, (e, _, selected))| {
+                            // There's no unique identifier for `Entry`, so we have to do this to
+                            // calculate `new_cursor`.
+                            if selected {
+                                new_cursor = Some(j);
+                            }
+
+                            e
+                        }
+                    ).collect();
+
+                    return Action::TransitToTmpEntries {
+                        entries: Entries {
+                            id: format!("@@tmp-{:x}", rand::random::<u64>()),
+                            title: entries.title.as_ref().map(|t| format!("{t} ({})", filter.name)),
+                            entries: new_entries,
+                            entry_state_count: entries.entry_state_count,
+                            transition: Some(Transition {
+                                id: entries.id.clone(),
+                                description: Some(String::from("exit filter view")),
+                            }),
+                            filters: vec![],
+                            render_canvas: entries.render_canvas,
+                            render_top_bar_extra_message: entries.render_top_bar_extra_message,
+                        },
+                        cursor: new_cursor,
+                    };
+                }
+            }
         }
 
         if input.down_keys.contains(&KeyCode::Down) {
@@ -48,9 +93,6 @@ impl State {
             scroll_up = true;
         }
 
-        let is_ctrl_down = input.down_keys.contains(&KeyCode::LeftControl) || input.down_keys.contains(&KeyCode::RightControl);
-        let is_shift_down = input.down_keys.contains(&KeyCode::LeftShift) || input.down_keys.contains(&KeyCode::RightShift);
-        let is_alt_down = input.down_keys.contains(&KeyCode::LeftAlt) || input.down_keys.contains(&KeyCode::RightAlt);
         let side_bar_start = if self.wide_side_bar { 600.0 } else { 900.0 };
 
         if !is_shift_down && !is_ctrl_down && !is_alt_down {
@@ -75,27 +117,14 @@ impl State {
                     self.cursor = (self.cursor + entries.len() - scroll_speed) % entries.len();
                 }
 
-                let n = if input.pressed_keys.contains(&KeyCode::Key1) {
-                    Some(0)
-                } else if input.pressed_keys.contains(&KeyCode::Key2) {
-                    Some(1)
-                } else if input.pressed_keys.contains(&KeyCode::Key3) {
-                    Some(2)
-                } else if input.pressed_keys.contains(&KeyCode::Key4) {
-                    Some(3)
-                } else if input.pressed_keys.contains(&KeyCode::Key5) {
-                    Some(4)
-                } else if input.pressed_keys.contains(&KeyCode::Key6) {
-                    Some(5)
-                } else if input.pressed_keys.contains(&KeyCode::Key7) {
-                    Some(6)
-                } else if input.pressed_keys.contains(&KeyCode::Key8) {
-                    Some(7)
-                } else if input.pressed_keys.contains(&KeyCode::Key9) {
-                    Some(8)
-                } else {
-                    None
-                };
+                let mut n = None;
+
+                for (i, num_key) in num_keys[1..].iter().enumerate() {
+                    if input.pressed_keys.contains(num_key) {
+                        n = Some(i);
+                        break;
+                    }
+                }
 
                 if let Some(n) = n {
                     self.cursor = n * (entries.len() - 1) / 8;
@@ -115,8 +144,13 @@ impl State {
             }
 
             if input.pressed_keys.contains(&KeyCode::M) {
-                self.entry_state.0 = (self.entry_state.0 + 1) % entries.entry_state_count;
-                // self.reset_entry_state();
+                if entries.entry_state_count < 2 {
+                    self.show_popup("There's no state to change!");
+                }
+
+                else {
+                    self.entry_state.0 = (self.entry_state.0 + 1) % entries.entry_state_count;
+                }
             }
         }
 
@@ -130,7 +164,10 @@ impl State {
                     if let Some(transition) = transition {
                         self.curr_entries_id = transition.id.to_string();
                         self.reset_entries_state();
-                        return Action::Transit(transition.id.to_string());
+                        return Action::Transit {
+                            id: transition.id.to_string(),
+                            cursor: None,
+                        };
                     }
 
                     else {

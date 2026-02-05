@@ -1,3 +1,7 @@
+# 10. comments/issues on `Entry`/`Entry`s
+
+Since the primary target is test-suite viewer, I want to add comments / open issues. I want to link `Entry`s to an issue, and vice versa.
+
 # 9. search by regex
 
 idea: create a tmp `Entries` with the result

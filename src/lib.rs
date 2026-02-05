@@ -13,6 +13,7 @@ mod action;
 mod cache;
 mod config;
 mod entry;
+mod filter;
 mod graphic;
 mod input;
 mod state;
@@ -23,6 +24,7 @@ use cache::{RenderCache, TextureCache};
 pub use macroquad::color::Color;
 pub use config::Config;
 pub use entry::{Entries, Entry, EntryFlag, EntryState, Transition};
+pub use filter::Filter;
 pub use graphic::{Graphic, TextBox};
 use graphic::hide_off_screen;
 use input::get_input;
@@ -48,10 +50,11 @@ pub fn run(
 
 async fn run_inner(
     conf: Config,
-    entries_map: HashMap<String, Entries>,
+    mut entries_map: HashMap<String, Entries>,
     initial_entries_id: String,
 ) {
     let empty_entries = Entries::default();
+    let mut tmp_entries_ids = vec![];
     let mut texture_cache = TextureCache::new();
     let mut entries = if entries_map.is_empty() {
         &empty_entries
@@ -71,6 +74,7 @@ async fn run_inner(
         scrolling_with_arrow_keys: 0,
         cache: RenderCache::new(),
     };
+    let mut cursor_cache = HashMap::new();
     let font = load_ttf_font_from_bytes(include_bytes!("../resources/SpaceMono-Regular.ttf")).unwrap();
 
     loop {
@@ -81,9 +85,38 @@ async fn run_inner(
 
         match state.frame(&entries, &input).await {
             Action::None => {},
-            Action::Transit(id) => {
+            Action::Transit { id, cursor } => {
+                // `Action::Transit` can never transit to a tmp entries,
+                // so it's safe to remove all the tmp entries here.
+                for tmp_id in tmp_entries_ids.drain(..) {
+                    cursor_cache.remove(&tmp_id);
+                    entries_map.remove(&tmp_id);
+                }
+
+                cursor_cache.insert(state.curr_entries_id.to_string(), state.cursor);
                 entries = entries_map.get(&id).unwrap();
                 state.curr_entries_id = id.to_string();
+
+                if let Some(cursor) = cursor {
+                    state.cursor = cursor;
+                } else if let Some(cursor) = cursor_cache.get(&id) {
+                    state.cursor = *cursor;
+                } else {
+                    state.cursor = 0;
+                }
+            },
+            Action::TransitToTmpEntries { entries: new_entries, cursor } => {
+                cursor_cache.insert(state.curr_entries_id.to_string(), state.cursor);
+                state.curr_entries_id = new_entries.id.to_string();
+                tmp_entries_ids.push(new_entries.id.to_string());
+                entries_map.insert(new_entries.id.to_string(), new_entries);
+                entries = entries_map.get(&state.curr_entries_id).unwrap();
+
+                if let Some(cursor) = cursor {
+                    state.cursor = cursor;
+                } else {
+                    state.cursor = 0;
+                }
             },
             Action::Quit => {
                 break;

@@ -373,23 +373,34 @@ impl State {
                 a: 1.0,
             },
         });
+
+        // TODO: check these globally, and keep them in variables
+        //       that's for 2 reasons:
+        //       1. (very small) performance gain
+        //       2. even if an entries have no state, we have to show help message if other entrieses have states
         let has_entry = !entries.is_empty();
         let has_entry_state = entries.entry_state_count > 1;
         let has_something_on_canvas = !self.curr_canvas().unwrap_or(&vec![]).is_empty();
         let has_transition = entries.transition.is_some() || entries.iter().any(|entry| entry.transition1.is_some() || entry.transition2.is_some());
-        let lines = [
-            ("Esc: Quit", true),
-            ("Left/Right: Toggle side-bar", true),
-            ("Up/Down: Jump to prev/next entry", has_entry),
-            ("1~9: Quick jump", has_entry),
-            ("W/A/S/D: Move camera", has_something_on_canvas),
-            ("Shift + W/A/S/D: Move camera faster", has_something_on_canvas),
-            ("Z/X: Zoom In/Out", has_something_on_canvas),
-            ("Shift + Z/X: Zoom In/Out faster", has_something_on_canvas),
-            ("H: See help message", true),
-            ("M: Change entry state", has_entry_state),
-            ("Ctrl + Up/Left/Right: Transit to another entries", has_transition),
+
+        let mut lines = vec![
+            (String::from("Esc: Quit"), true),
+            (String::from("Left/Right: Toggle side-bar"), true),
+            (String::from("Up/Down: Jump to prev/next entry"), has_entry),
+            (String::from("1~9: Quick jump"), has_entry),
+            (String::from("W/A/S/D: Move camera"), has_something_on_canvas),
+            (String::from("Shift + W/A/S/D: Move camera faster"), has_something_on_canvas),
+            (String::from("Z/X: Zoom In/Out"), has_something_on_canvas),
+            (String::from("Shift + Z/X: Zoom In/Out faster"), has_something_on_canvas),
+            (String::from("H: See help message"), true),
+            (String::from("M: Change entry state"), has_entry_state),
+            (String::from("Ctrl + Up/Left/Right: Transit to another entries"), has_transition),
         ];
+
+        for (i, filter) in entries.filters.iter().enumerate() {
+            lines.push((format!("Ctrl + {}: {}", i + 1, filter.name), true));
+        }
+
         let help_message = lines.into_iter().filter(|(_, show)| *show).map(|(s, _)| s).collect::<Vec<_>>().join("\n");
         graphics.extend(TextBox::new(
             &help_message,

@@ -1,7 +1,9 @@
-use crate::Graphic;
+use crate::{Filter, Graphic};
 
+#[derive(Clone, Debug)]
 pub struct Entry {
     /// Users see this name in the side-bar.
+    /// It doesn't have to be unique, but I recommend you use unique names.
     pub name: String,
 
     /// There's no way for the users to directly see this content.
@@ -16,11 +18,11 @@ pub struct Entry {
     /// use this corpus instead of `.content`.
     pub search_corpus: Option<String>,
 
-    /// The user can filter `Entry`s by categories. (WIP)
+    /// The user can filter `Entry`s by categories.
     pub categories: Vec<String>,
 
     /// `transition1` and `transition2` have ids of another `Entries`.
-    /// The user can transit to this `Entries` with K/L key.
+    /// The user can transit to this `Entries` with Ctrl+Left/Right key.
     pub transition1: Option<Transition>,
     pub transition2: Option<Transition>,
 
@@ -31,8 +33,6 @@ pub struct Entry {
     ///
     /// If you're using shev to render a result of a test suite, you can use this to
     /// indicate whether a test case is successful.
-    ///
-    /// TODO: filter by flag
     pub flag: EntryFlag,
 }
 
@@ -51,7 +51,10 @@ impl Default for Entry {
 }
 
 pub struct Entries {
+    /// This has to be unique.
+    /// The users cannot see this.
     pub id: String,
+
     pub title: Option<String>,
     pub entries: Vec<Entry>,
 
@@ -64,8 +67,11 @@ pub struct Entries {
     pub entry_state_count: u32,
 
     /// This has an id of another `Entries`.
-    /// The user can transit to this `Entries` with J key.
+    /// The user can transit to this `Entries` with Ctrl+Up key.
     pub transition: Option<Transition>,
+
+    /// Users can filter `Entry`s with Ctrl+1~9.
+    pub filters: Vec<Filter>,
 
     /// The engine will use this function to render the currently selected `Entry`.
     /// The canvas size is always 900x600. If the graphic goes out of canvas,
@@ -107,6 +113,7 @@ impl Default for Entries {
             entries: vec![],
             entry_state_count: 1,
             transition: None,
+            filters: vec![],
             render_canvas: |_, _| Ok(vec![]),
             render_top_bar_extra_message: None,
         }

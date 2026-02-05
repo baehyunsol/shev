@@ -12,6 +12,7 @@ use shev::{
     Entry,
     EntryFlag,
     EntryState,
+    Filter,
     Graphic,
     TextBox,
     Transition,
@@ -80,6 +81,16 @@ fn main() {
                         id: String::from("index"),
                         description: Some(String::from("go back to index")),
                     }),
+                    filters: vec![
+                        Filter {
+                            name: String::from("Success only"),
+                            cond: |e| e.flag == EntryFlag::Green,
+                        },
+                        Filter {
+                            name: String::from("Fail only"),
+                            cond: |e| e.flag == EntryFlag::Red,
+                        },
+                    ],
                     render_canvas: render_single_file_test,
                     ..Entries::default()
                 },
