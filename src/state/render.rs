@@ -392,6 +392,7 @@ impl State {
             (String::from("Shift + W/A/S/D: Move camera faster"), has_something_on_canvas),
             (String::from("Z/X: Zoom In/Out"), has_something_on_canvas),
             (String::from("Shift + Z/X: Zoom In/Out faster"), has_something_on_canvas),
+            (String::from("Space: Reset camera"), has_something_on_canvas),
             (String::from("H: See help message"), true),
             (String::from("M: Change entry state"), has_entry_state),
             (String::from("Ctrl + Up/Left/Right: Transit to another entries"), has_transition),

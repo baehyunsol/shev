@@ -127,7 +127,7 @@ async fn run_inner(
         let mut graphics = state.render(&input, entries, &conf);
         hide_off_screen(&mut graphics, 1080.0, 720.0);
         fit_graphics_to_screen(&mut graphics, 1080.0, 720.0, s_w, s_h);
-        graphic::render(&graphics, &font, &mut texture_cache, (s_w, s_h));
+        graphic::render(&graphics, &font, &mut texture_cache, (s_w, s_h)).await;
 
         next_frame().await;
         let elapsed_time = Instant::now().duration_since(frame_started_at).as_millis() as u64;

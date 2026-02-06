@@ -152,6 +152,11 @@ impl State {
                     self.entry_state.0 = (self.entry_state.0 + 1) % entries.entry_state_count;
                 }
             }
+
+            if input.pressed_keys.contains(&KeyCode::Space) {
+                self.camera_zoom = 1.0;
+                self.camera_pos = (450.0, 300.0);
+            }
         }
 
         if is_ctrl_down {

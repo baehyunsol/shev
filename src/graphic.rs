@@ -60,7 +60,7 @@ pub enum Graphic {
 
     /// NOTE: If you're using shev as a framework, you don't need this.
     Image {
-        texture_id: String,
+        path: String,
         x: f32,
         y: f32,
         w: f32,
@@ -87,7 +87,7 @@ impl Graphic {
     }
 }
 
-pub fn render(graphics: &[Graphic], font: &Font, textures: &mut TextureCache, (screen_width, screen_height): (f32, f32)) {
+pub async fn render(graphics: &[Graphic], font: &Font, textures: &mut TextureCache, (screen_width, screen_height): (f32, f32)) {
     for graphic in graphics.iter() {
         let [x, y, w, h] = graphic.get_rect();
 
@@ -182,9 +182,9 @@ pub fn render(graphics: &[Graphic], font: &Font, textures: &mut TextureCache, (s
                 );
             },
             Graphic::ImageFile { .. } => panic!("It should've been converted to `Graphic::Image`: {graphic:?}"),
-            Graphic::Image { texture_id, x, y, w, h } => {
+            Graphic::Image { path, x, y, w, h } => {
                 draw_texture_ex(
-                    &textures.get(texture_id).unwrap(),
+                    textures.get(path).await,
                     *x,
                     *y,
                     // TODO: what's it for?

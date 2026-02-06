@@ -83,8 +83,8 @@ impl State {
                 for graphic in canvas.iter_mut() {
                     match graphic {
                         Graphic::ImageFile { path, x, y, w, h } => {
-                            let texture_id = textures.register(path).await;
-                            *graphic = Graphic::Image { texture_id, x: *x, y: *y, w: *w, h: *h };
+                            textures.register(path).await;
+                            *graphic = Graphic::Image { path: path.to_string(), x: *x, y: *y, w: *w, h: *h };
                         },
                         _ => {},
                     }
@@ -109,8 +109,12 @@ impl TextureCache {
         TextureCache { data: LRU::with_capacity(64) }
     }
 
-    pub fn get(&mut self, id: &String) -> Option<&Texture2D> {
-        self.data.get(id)
+    pub async fn get(&mut self, path: &String) -> &Texture2D {
+        if self.data.get(path).is_none() {
+            self.register(path).await;
+        }
+
+        self.data.get(path).unwrap()
     }
 
     pub async fn register(&mut self, path: &str) -> String {
