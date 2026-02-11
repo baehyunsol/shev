@@ -153,6 +153,16 @@ impl State {
                 }
             }
 
+            if input.pressed_keys.contains(&KeyCode::N) {
+                if entries.entry_state_count < 2 {
+                    self.show_popup("There's no state to change!");
+                }
+
+                else {
+                    self.entry_state.0 = (self.entry_state.0 + entries.entry_state_count - 1) % entries.entry_state_count;
+                }
+            }
+
             if input.pressed_keys.contains(&KeyCode::Space) {
                 self.camera_zoom = 1.0;
                 self.camera_pos = (450.0, 300.0);
@@ -187,26 +197,40 @@ impl State {
         let mut scroll_down = false;
         let mut scroll_left = false;
         let mut scroll_right = false;
+        let mut zoom_in = false;
+        let mut zoom_out = false;
 
         if input.mouse_pos.0 < side_bar_start {
-            if input.mouse_wheel.0 < 0.0 {
-                scroll_left = true;
-                camera_move_speed = 3.0;
+            if is_ctrl_down {
+                if input.mouse_wheel.1 < 0.0 {
+                    zoom_in = true;
+                }
+
+                if input.mouse_wheel.1 > 0.0 {
+                    zoom_out = true;
+                }
             }
 
-            if input.mouse_wheel.0 > 0.0 {
-                scroll_right = true;
-                camera_move_speed = 3.0;
-            }
+            else {
+                if input.mouse_wheel.0 < 0.0 {
+                    scroll_left = true;
+                    camera_move_speed = 3.0;
+                }
 
-            if input.mouse_wheel.1 < 0.0 {
-                scroll_up = true;
-                camera_move_speed = 3.0;
-            }
+                if input.mouse_wheel.0 > 0.0 {
+                    scroll_right = true;
+                    camera_move_speed = 3.0;
+                }
 
-            if input.mouse_wheel.1 > 0.0 {
-                scroll_down = true;
-                camera_move_speed = 3.0;
+                if input.mouse_wheel.1 < 0.0 {
+                    scroll_up = true;
+                    camera_move_speed = 3.0;
+                }
+
+                if input.mouse_wheel.1 > 0.0 {
+                    scroll_down = true;
+                    camera_move_speed = 3.0;
+                }
             }
         }
 
@@ -232,7 +256,7 @@ impl State {
             self.camera_pos.0 += camera_move_speed;
         }
 
-        if input.down_keys.contains(&KeyCode::Z) {
+        if input.down_keys.contains(&KeyCode::Z) || zoom_in {
             if zoom_faster {
                 self.camera_zoom = (self.camera_zoom * 1.2).min(8.0);
             }
@@ -242,7 +266,7 @@ impl State {
             }
         }
 
-        if input.down_keys.contains(&KeyCode::X) {
+        if input.down_keys.contains(&KeyCode::X) || zoom_out {
             if zoom_faster {
                 self.camera_zoom = (self.camera_zoom * 0.8333).max(0.1);
             }
