@@ -122,7 +122,16 @@ impl State {
 
     fn render_side_bar(&mut self, input: &Input, config: &Config, entries: &Entries, graphics: &mut Vec<Graphic>) {
         let (x, w) = if self.wide_side_bar { (600.0, 480.0) } else { (900.0, 180.0) };
-        let title_max_len = if self.wide_side_bar { 42 } else { 8 };
+        let title_max_len = if self.wide_side_bar {
+            // has scroll_bar
+            if entries.len() > 33 {
+                36
+            } else {
+                42
+            }
+        } else {
+            8
+        };
 
         // bg
         graphics.push(Graphic::Rect {
