@@ -151,6 +151,7 @@ async fn run_inner(
 
                     entries = entries_map.get(&state.curr_entries_id).unwrap();
                     state.cache = RenderCache::new();
+                    last_refresh = Instant::now();
                 },
                 Err(e) => {
                     state.popup = Some((120, e));
