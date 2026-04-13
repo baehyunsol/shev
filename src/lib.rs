@@ -35,6 +35,10 @@ pub fn run(
     conf: Config,
     entries_map: HashMap<String, Entries>,
     initial_entries_id: String,
+
+    // If it's set, the entries are refreshed every 5 seconds.
+    // TODO: make the period configurable
+    refresh: Option<fn() -> Result<HashMap<String, Entries>, String>>,
 ) {
     let window_config = WindowConfig {
         window_width: conf.window_width,
@@ -45,13 +49,14 @@ pub fn run(
         ..Default::default()
     };
 
-    macroquad::Window::from_config(window_config, run_inner(conf, entries_map, initial_entries_id));
+    macroquad::Window::from_config(window_config, run_inner(conf, entries_map, initial_entries_id, refresh));
 }
 
 async fn run_inner(
     conf: Config,
     mut entries_map: HashMap<String, Entries>,
     initial_entries_id: String,
+    refresh: Option<fn() -> Result<HashMap<String, Entries>, String>>,
 ) {
     let empty_entries = Entries::default();
     let mut tmp_entries_ids = vec![];
@@ -75,6 +80,7 @@ async fn run_inner(
         cache: RenderCache::new(),
     };
     let mut cursor_cache = HashMap::new();
+    let mut last_refresh = Instant::now();
     let font = load_ttf_font_from_bytes(include_bytes!("../resources/SpaceMono-Regular.ttf")).unwrap();
 
     loop {
@@ -134,6 +140,22 @@ async fn run_inner(
 
         if elapsed_time < 25 {
             thread::sleep(Duration::from_millis(25 - elapsed_time));
+        }
+
+        if Instant::now().duration_since(last_refresh.clone()).as_millis() > 5_000 && let Some(refresh) = refresh {
+            match refresh() {
+                Ok(new_entries) => {
+                    for (k, v) in new_entries.into_iter() {
+                        entries_map.insert(k, v);
+                    }
+
+                    entries = entries_map.get(&state.curr_entries_id).unwrap();
+                    state.cache = RenderCache::new();
+                },
+                Err(e) => {
+                    state.popup = Some((120, e));
+                },
+            }
         }
     }
 }
